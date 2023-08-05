@@ -1,5 +1,5 @@
 #====================== BUILD LIBRARIES =======================#
-add_subdirectory(core)
+add_subdirectory(nes_core)
 
 #====================== SETUP EXECUTABLE =======================#
 add_executable(NES_Emulator main.cpp)
