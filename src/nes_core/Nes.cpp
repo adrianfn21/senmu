@@ -37,6 +37,10 @@ uint64_t NesSystem::getCycles() const noexcept {
     return cpu.getCycles();
 }
 
+uint64_t NesSystem::getInstructions() const noexcept {
+    return cpu.getInstructions();
+}
+
 void NesSystem::loadRom(const std::vector<uint8_t>& romData) {
     if (romData.size() > ROM_SIZE) {
         std::cout << "ROM size is too big" << std::endl;

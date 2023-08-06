@@ -18,7 +18,7 @@ namespace iNES {
 
 class iNES {
   public:
-    iNES(std::string filepath);
+    iNES(const std::string& filepath);
     ~iNES() = default;
 
     /* iNES format fields */

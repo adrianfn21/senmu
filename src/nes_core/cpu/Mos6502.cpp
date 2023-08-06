@@ -2,7 +2,7 @@
 
 namespace NES {
 
-MOS6502::MOS6502(Bus& bus) : bus(bus), cycles(0), opcode(0), fetched(0), addr(0) {
+MOS6502::MOS6502(Bus& bus) : bus(bus), cycles(0), opcode(0xFF), fetched(0), addr(0) {
     // TODO: how to initialize this?
     reset();
     cycles = 0;
@@ -41,7 +41,7 @@ void MOS6502::reset() {
     // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
     // The D (decimal mode) flag is not defined after RESET.
 
-    r_status.value = 0x00;
+    r_status = 0x00;
     r_A = 0x00;
     r_X = 0x00;
     r_Y = 0x00;
@@ -53,7 +53,7 @@ void MOS6502::reset() {
     const uint16_t resetHandlerAddr = 0xFFFC;
     r_PC = (bus.read(resetHandlerAddr + 1) << 8) | bus.read(resetHandlerAddr);
 
-    cycles = 8;
+    cycles = 7;
 }
 
 void MOS6502::irq() {
@@ -61,16 +61,16 @@ void MOS6502::irq() {
     // The D (decimal mode) flag is not cleared by interrupts.
 
     // This interrupt is only processed if Interrupts are enabled
-    if (!r_status.I) {
+    if (!getFlag(I)) {
         // Pushes the PC to the stack
         bus.write(STACK_PAGE + (r_SP--), (r_PC >> 8) & 0x00FF);
         bus.write(STACK_PAGE + (r_SP--), r_PC & 0x00FF);
 
         // Pushes the status register to the stack
-        r_status.B = 0;
-        r_status.U = 1;
-        r_status.I = 1;
-        bus.write(STACK_PAGE + (r_SP--), r_status.value);
+        setFlag(B, false);
+        setFlag(U, true);
+        setFlag(I, true);
+        bus.write(STACK_PAGE + (r_SP--), r_status);
 
         // Call to the interrupt handler for IRQ
         constexpr uint16_t irqHandlerAddr = 0xFFFE;
@@ -89,10 +89,10 @@ void MOS6502::nmi() {
     bus.write(STACK_PAGE + (r_SP--), r_PC & 0x00FF);
 
     // Pushes the status register to the stack
-    r_status.B = 0;
-    r_status.U = 1;
-    r_status.I = 1;
-    bus.write(STACK_PAGE + (r_SP--), r_status.value);
+    setFlag(B, false);
+    setFlag(U, true);
+    setFlag(I, true);
+    bus.write(STACK_PAGE + (r_SP--), r_status);
 
     // Call to the interrupt handler for IRQ
     constexpr uint16_t nmiHandlerAddr = 0xFFFA;

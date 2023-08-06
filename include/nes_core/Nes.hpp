@@ -27,6 +27,7 @@ class NesSystem {
     [[nodiscard]] uint16_t getPC() const noexcept;
 
     [[nodiscard]] uint64_t getCycles() const noexcept;
+    [[nodiscard]] uint64_t getInstructions() const noexcept;
 
   public:
     void write(uint16_t addr, uint8_t data) const noexcept;

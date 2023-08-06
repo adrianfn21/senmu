@@ -2,6 +2,7 @@
 
 /**
  * Main module reference: https://www.nesdev.org/obelisk-6502-guide/addressing.html
+ * Detailed reference: https://www.pagetable.com/c64ref/6502/?tab=3
  */
 
 namespace NES {
@@ -46,7 +47,7 @@ uint8_t MOS6502::ZP0() {
     return 0;
 }
 
-/* Zero Page with X Offset.
+/* X-Indexed Zero Page.
  * The address to be accessed by an instruction using indexed zero page addressing is calculated by taking the 8-bit zero-page address
  * from the instruction and adding the current value of the X register to it.
  * For example if the X register contains $0F and the instruction LDA $80,X is executed then the accumulator
@@ -56,18 +57,18 @@ uint8_t MOS6502::ZP0() {
  * If we repeat the last example but with $FF in the X register then the accumulator will be loaded from $007F (e.g. $80 + $FF => $7F) and not $017F.
  */
 uint8_t MOS6502::ZPX() {
-    addr = bus.read(r_PC++) + r_X;  // Yes, it does not handle overflow
+    addr = static_cast<uint8_t>(bus.read(r_PC++) + r_X);  // Yes, it does not handle overflow
     fetched = bus.read(addr);
     return 0;
 }
 
-/* Zero Page with Y Offset.
+/* Y-Indexed Zero Page.
  * The address to be accessed by an instruction using indexed zero page addressing is calculated by taking the 8-bit zero-page address
  * from the instruction and adding the current value of the Y register to it.
  * This mode can only be used with the LDX and STX instructions.
  */
 uint8_t MOS6502::ZPY() {
-    addr = bus.read(r_PC++) + r_Y;  // Yes, it does not handle overflow
+    addr = static_cast<uint8_t>(bus.read(r_PC++) + r_Y);  // Yes, it does not handle overflow
     fetched = bus.read(addr);
     return 0;
 }
@@ -103,7 +104,7 @@ uint8_t MOS6502::ABS() {
     return 0;
 }
 
-/* Absolute with X Offset.
+/* X-Indexed Absolute.
  * The address to be accessed by an instruction using X register indexed absolute addressing is computed by taking the 16-bit address
  * from the instruction and added the contents of the X register.
  * For example if X contains $92 then an STA $2000,X instruction will store the accumulator at $2092 (e.g. $2000 + $92).
@@ -111,28 +112,30 @@ uint8_t MOS6502::ABS() {
 uint8_t MOS6502::ABX() {
     uint16_t low = bus.read(r_PC++);
     uint16_t high = bus.read(r_PC++);
-    addr = (high << 8) | low;
-    fetched = bus.read(addr + static_cast<uint16_t>(r_X));
+    uint16_t baseAddr = (high << 8) | low;
+    addr = baseAddr + static_cast<uint16_t>(r_X);
+    fetched = bus.read(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
-    return (addr & 0xFF00) != ((addr + static_cast<uint16_t>(r_X)) & 0xFF00) ? 1 : 0;
+    return (baseAddr & 0xFF00) != ((addr)&0xFF00) ? 1 : 0;
 }
 
-/* Absolute with Y Offset.
+/* Y-Indexed Absolute.
  * The Y register indexed absolute addressing mode is the same as the previous mode only with the contents of the Y register
  * added to the 16-bit address from the instruction.
  */
 uint8_t MOS6502::ABY() {
     uint16_t low = bus.read(r_PC++);
     uint16_t high = bus.read(r_PC++);
-    addr = (high << 8) | low;
-    fetched = bus.read(addr + static_cast<uint16_t>(r_Y));
+    uint16_t baseAddr = (high << 8) | low;
+    addr = baseAddr + static_cast<uint16_t>(r_Y);
+    fetched = bus.read(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
-    return (addr & 0xFF00) != ((addr + static_cast<uint16_t>(r_Y)) & 0xFF00) ? 1 : 0;
+    return (baseAddr & 0xFF00) != ((addr)&0xFF00) ? 1 : 0;
 }
 
-/* Indirect.
+/* Absolute Indirect.
  * JMP is the only 6502 instruction to support indirection. The instruction contains a 16-bit address which identifies the location of
  * the least significant byte of another 16-bit memory address which is the real target of the instruction.
  * For example if location $0120 contains $FC and location $0121 contains $BA then the instruction JMP ($0120) will cause the next instruction
@@ -157,34 +160,35 @@ uint8_t MOS6502::IND() {
     return 0;
 }
 
-/* Indexed Indirect X.
+/* X-Indexed Zero Page Indirect.
  * Indexed indirect addressing is normally used in conjunction with a table of address held on zero page. The address of the table is
  * taken from the instruction and the X register added to it (with zero page wrap around) to give the location of the least significant
  * byte of the target address.
  */
 uint8_t MOS6502::IZX() {
-    uint16_t base = bus.read(r_PC++);
-    uint16_t low = bus.read((base + static_cast<uint16_t>(r_X)) & 0x00FF);
-    uint16_t high = bus.read((base + static_cast<uint16_t>(r_X) + 1) & 0x00FF);
+    uint16_t indirect = bus.read(r_PC++);
+    uint16_t low = bus.read((indirect + static_cast<uint16_t>(r_X)) & 0x00FF);
+    uint16_t high = bus.read((indirect + static_cast<uint16_t>(r_X) + 1) & 0x00FF);
     addr = (high << 8) | low;
     fetched = bus.read(addr);
     return 0;
 }
 
-/* Indexed Indirect Y.
+/* Zero Page Indirect Y-Indexed.
  * Indexed indirect addressing is the most common indirection mode used on the 6502. In instruction contains the zero-page location
  * of the least significant byte of 16-bit address. The Y register is dynamically added to this value to generate the actual target
  * address for operation.
  */
 uint8_t MOS6502::IZY() {
-    uint16_t base = bus.read(r_PC++);
-    uint16_t low = bus.read(base);
-    uint16_t high = bus.read((base + 1) & 0x00FF);
-    addr = (high << 8) | low;
-    fetched = bus.read(addr + static_cast<uint16_t>(r_Y));
+    uint16_t indirect = bus.read(r_PC++);
+    uint16_t low = bus.read(indirect);
+    uint16_t high = bus.read((indirect + 1) & 0x00FF);
+    uint16_t baseAddr = (high << 8) | low;
+    addr = baseAddr + static_cast<uint16_t>(r_Y);
+    fetched = bus.read(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
-    return (addr & 0xFF00) != ((addr + static_cast<uint16_t>(r_Y)) & 0xFF00) ? 1 : 0;
+    return (baseAddr & 0xFF00) != ((addr)&0xFF00) ? 1 : 0;
 }
 
 }  // namespace NES

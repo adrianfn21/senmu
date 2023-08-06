@@ -121,20 +121,27 @@ class MOS6502 {
     uint8_t r_X;    // Index Register X
     uint8_t r_Y;    // Index Register Y
 
-    union {
-        struct {
-            bool C : 1;  // Carry Flag
-            bool Z : 1;  // Zero Flag
-            bool I : 1;  // Interrupt Disable
-            bool D : 1;  // Decimal Mode (unused in NES)
-            bool B : 1;  // Break Command
-            bool U : 1;  // Unused
-            bool V : 1;  // Overflow Flag
-            bool N : 1;  // Negative Flag
-        };
+    enum StatusFlags {
+        C = (1 << 0),  // Carry Flag
+        Z = (1 << 1),  // Zero Flag
+        I = (1 << 2),  // Interrupt Disable
+        D = (1 << 3),  // Decimal Mode (unused in NES)
+        B = (1 << 4),  // Break Command
+        U = (1 << 5),  // Unused
+        V = (1 << 6),  // Overflow Flag
+        N = (1 << 7),  // Negative Flag
+    };
 
-        uint8_t value;  // Only used to set all flags to 0 or 1 at once
-    } r_status;         // Status Register
+    uint8_t r_status;  // Status Register
+
+    constexpr void setFlag(StatusFlags flag, bool value) {
+        if (value)
+            r_status |= flag;
+        else
+            r_status &= ~flag;
+    }
+
+    constexpr bool getFlag(StatusFlags flag) const { return r_status & flag; }
 
     /* Instructions supported by the 6502 CPU
      * Reference: https://www.nesdev.org/obelisk-6502-guide/instructions.html
@@ -192,13 +199,13 @@ class MOS6502 {
 
     // Shift Instructions
     uint8_t ASL();  // Arithmetic Shift Left (Memory)
-    uint8_t AAL();  // Arithmetic Shift Left (Accumulator)
+    uint8_t ASA();  // Arithmetic Shift Left (Accumulator)
     uint8_t LSR();  // Logical Shift Right (Memory)
-    uint8_t LAR();  // Logical Shift Right (Accumulator)
+    uint8_t LSA();  // Logical Shift Right (Accumulator)
     uint8_t ROL();  // Rotate Left (Memory)
-    uint8_t RAL();  // Rotate Left (Accumulator)
+    uint8_t ROA();  // Rotate Left (Accumulator)
     uint8_t ROR();  // Rotate Right (Memory)
-    uint8_t RAR();  // Rotate Right (Accumulator)
+    uint8_t RAA();  // Rotate Right (Accumulator)
 
     // Jump/Calls Instructions
     uint8_t JMP();  // Jump
@@ -229,6 +236,16 @@ class MOS6502 {
     uint8_t NOP();  // No Operation
     uint8_t RTI();  // Return from Interrupt
 
+    // Unofficial Instructions
+    uint8_t LAX();  // Load Accumulator and Index X
+    uint8_t SAX();  // Store Accumulator and Index X
+    uint8_t DCP();  // Decrement Memory and Compare
+    uint8_t ISC();  // Increment Memory and Subtract with Carry
+    uint8_t SLO();  // Shift Left Memory and OR with Accumulator
+    uint8_t RLA();  // Rotate Left Memory and AND with Accumulator
+    uint8_t SRE();  // Shift Right Memory and XOR with Accumulator
+    uint8_t RRA();  // Rotate Right Memory and Add with Carry
+
     // Not defined behavior
     uint8_t XXX();  // Illegal Opcode
 
@@ -248,15 +265,15 @@ class MOS6502 {
     [[maybe_unused]] uint8_t ACC();  // Accumulator (unused, behaviour adapted to AAL and RAL instructions)
     uint8_t IMM();                   // Immediate
     uint8_t ZP0();                   // Zero Page
-    uint8_t ZPX();                   // Zero Page with X Offset
-    uint8_t ZPY();                   // Zero Page with Y Offset
+    uint8_t ZPX();                   // X-Indexed Zero Page
+    uint8_t ZPY();                   // Y-Indexed Zero Page
     uint8_t REL();                   // Relative (only used by branch instructions)
     uint8_t ABS();                   // Absolute
-    uint8_t ABX();                   // Absolute X
-    uint8_t ABY();                   // Absolute Y
-    uint8_t IND();                   // Indirect (only used by JMP)
-    uint8_t IZX();                   // Indexed Indirect X
-    uint8_t IZY();                   // Indexed Indirect Y
+    uint8_t ABX();                   // X-Indexed Absolute
+    uint8_t ABY();                   // Y-Indexed Absolute
+    uint8_t IND();                   // Absolute Indirect (only used by JMP)
+    uint8_t IZX();                   // X-Indexed Zero Page Indirect
+    uint8_t IZY();                   // Zero Page Indirect Y-Indexed
 
     /* Instruction Set OpCode Matrix
      * Reference table (page 10): http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf
@@ -264,7 +281,7 @@ class MOS6502 {
      */
     struct OpcodeInst {
         std::string name;
-        [[maybe_unused]] uint8_t opcode;
+        uint8_t opcode;
         uint8_t (MOS6502::*instruction)() = nullptr;
         uint8_t (MOS6502::*addrMode)() = nullptr;
         uint8_t cycles;
@@ -274,147 +291,147 @@ class MOS6502 {
         {"BRK", 0x00, &MOS6502::BRK, &MOS6502::IMP, 7},  //
         {"ORA", 0x01, &MOS6502::ORA, &MOS6502::IZX, 6},  //
         {"XXX", 0x02, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x03, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x04, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SLO", 0x03, &MOS6502::SLO, &MOS6502::IZX, 8},  // Unofficial
+        {"NOP", 0x04, &MOS6502::NOP, &MOS6502::ZP0, 3},  // Unofficial
         {"ORA", 0x05, &MOS6502::ORA, &MOS6502::ZP0, 3},  //
         {"ASL", 0x06, &MOS6502::ASL, &MOS6502::ZP0, 5},  //
-        {"XXX", 0x07, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SLO", 0x07, &MOS6502::SLO, &MOS6502::ZP0, 5},  // Unofficial
         {"PHP", 0x08, &MOS6502::PHP, &MOS6502::IMP, 3},  //
         {"ORA", 0x09, &MOS6502::ORA, &MOS6502::IMM, 2},  //
-        {"ASL", 0x0A, &MOS6502::AAL, &MOS6502::IMP, 2},  // ASL with Acc => AAL
+        {"ASL", 0x0A, &MOS6502::ASA, &MOS6502::IMP, 2},  // ASL with Acc => ASA
         {"XXX", 0x0B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x0C, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0x0C, &MOS6502::NOP, &MOS6502::ABS, 4},  // Unofficial
         {"ORA", 0x0D, &MOS6502::ORA, &MOS6502::ABS, 4},  //
         {"ASL", 0x0E, &MOS6502::ASL, &MOS6502::ABS, 6},  //
-        {"XXX", 0x0F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SLO", 0x0F, &MOS6502::SLO, &MOS6502::ABS, 6},  // Unofficial
 
         {"BPL", 0x10, &MOS6502::BPL, &MOS6502::REL, 2},  //
         {"ORA", 0x11, &MOS6502::ORA, &MOS6502::IZY, 5},  //
         {"XXX", 0x12, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x13, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x14, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SLO", 0x13, &MOS6502::SLO, &MOS6502::IZY, 8},  // Unofficial
+        {"NOP", 0x14, &MOS6502::NOP, &MOS6502::ZPX, 4},  // Unofficial
         {"ORA", 0x15, &MOS6502::ORA, &MOS6502::ZPX, 4},  //
         {"ASL", 0x16, &MOS6502::ASL, &MOS6502::ZPX, 6},  //
-        {"XXX", 0x17, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SLO", 0x17, &MOS6502::SLO, &MOS6502::ZPX, 6},  // Unofficial
         {"CLC", 0x18, &MOS6502::CLC, &MOS6502::IMP, 2},  //
         {"ORA", 0x19, &MOS6502::ORA, &MOS6502::ABY, 4},  //
-        {"NOP", 0x1A, &MOS6502::NOP, &MOS6502::IMP, 2},  //
-        {"XXX", 0x1B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x1C, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0x1A, &MOS6502::NOP, &MOS6502::IMP, 2},  // Unofficial
+        {"SLO", 0x1B, &MOS6502::SLO, &MOS6502::ABY, 7},  // Unofficial
+        {"NOP", 0x1C, &MOS6502::NOP, &MOS6502::ABX, 4},  // Unofficial
         {"ORA", 0x1D, &MOS6502::ORA, &MOS6502::ABX, 4},  //
         {"ASL", 0x1E, &MOS6502::ASL, &MOS6502::ABX, 7},  //
-        {"XXX", 0x1F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SLO", 0x1F, &MOS6502::SLO, &MOS6502::ABX, 7},  // Unofficial
 
         {"JSR", 0x20, &MOS6502::JSR, &MOS6502::ABS, 6},  //
         {"AND", 0x21, &MOS6502::AND, &MOS6502::IZX, 6},  //
         {"XXX", 0x22, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x23, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RLA", 0x23, &MOS6502::RLA, &MOS6502::IZX, 8},  // Unofficial
         {"BIT", 0x24, &MOS6502::BIT, &MOS6502::ZP0, 3},  //
         {"AND", 0x25, &MOS6502::AND, &MOS6502::ZP0, 3},  //
         {"ROL", 0x26, &MOS6502::ROL, &MOS6502::ZP0, 5},  //
-        {"XXX", 0x27, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RLA", 0x27, &MOS6502::RLA, &MOS6502::ZP0, 5},  // Unofficial
         {"PLP", 0x28, &MOS6502::PLP, &MOS6502::IMP, 4},  //
         {"AND", 0x29, &MOS6502::AND, &MOS6502::IMM, 2},  //
-        {"ROL", 0x2A, &MOS6502::RAL, &MOS6502::IMP, 2},  // ROL with Acc => RAL
+        {"ROL", 0x2A, &MOS6502::ROA, &MOS6502::IMP, 2},  // ROL with Acc => ROA
         {"XXX", 0x2B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
         {"BIT", 0x2C, &MOS6502::BIT, &MOS6502::ABS, 4},  //
         {"AND", 0x2D, &MOS6502::AND, &MOS6502::ABS, 4},  //
         {"ROL", 0x2E, &MOS6502::ROL, &MOS6502::ABS, 6},  //
-        {"XXX", 0x2F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RLA", 0x2F, &MOS6502::RLA, &MOS6502::ABS, 6},  // Unofficial
 
         {"BMI", 0x30, &MOS6502::BMI, &MOS6502::REL, 2},  //
         {"AND", 0x31, &MOS6502::AND, &MOS6502::IZY, 5},  //
         {"XXX", 0x32, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x33, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x34, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RLA", 0x33, &MOS6502::RLA, &MOS6502::IZY, 8},  // Unofficial
+        {"NOP", 0x34, &MOS6502::NOP, &MOS6502::ZPX, 4},  // Unofficial
         {"AND", 0x35, &MOS6502::AND, &MOS6502::ZPX, 4},  //
         {"ROL", 0x36, &MOS6502::ROL, &MOS6502::ZPX, 6},  //
-        {"XXX", 0x37, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RLA", 0x37, &MOS6502::RLA, &MOS6502::ZPX, 6},  // Unofficial
         {"SEC", 0x38, &MOS6502::SEC, &MOS6502::IMP, 2},  //
         {"AND", 0x39, &MOS6502::AND, &MOS6502::ABY, 4},  //
-        {"NOP", 0x3A, &MOS6502::NOP, &MOS6502::IMP, 2},  //
-        {"XXX", 0x3B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x3C, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0x3A, &MOS6502::NOP, &MOS6502::IMP, 2},  // Unofficial
+        {"RLA", 0x3B, &MOS6502::RLA, &MOS6502::ABY, 7},  // Unofficial
+        {"NOP", 0x3C, &MOS6502::NOP, &MOS6502::ABX, 4},  // Unofficial
         {"AND", 0x3D, &MOS6502::AND, &MOS6502::ABX, 4},  //
         {"ROL", 0x3E, &MOS6502::ROL, &MOS6502::ABX, 7},  //
-        {"XXX", 0x3F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RLA", 0x3F, &MOS6502::RLA, &MOS6502::ABX, 7},  // Unofficial
 
         {"RTI", 0x40, &MOS6502::RTI, &MOS6502::IMP, 6},  //
         {"EOR", 0x41, &MOS6502::EOR, &MOS6502::IZX, 6},  //
         {"XXX", 0x42, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x43, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x44, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SRE", 0x43, &MOS6502::SRE, &MOS6502::IZX, 8},  // Unofficial
+        {"NOP", 0x44, &MOS6502::NOP, &MOS6502::ZP0, 3},  // Unofficial
         {"EOR", 0x45, &MOS6502::EOR, &MOS6502::ZP0, 3},  //
         {"LSR", 0x46, &MOS6502::LSR, &MOS6502::ZP0, 5},  //
-        {"XXX", 0x47, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SRE", 0x47, &MOS6502::SRE, &MOS6502::ZP0, 5},  // Unofficial
         {"PHA", 0x48, &MOS6502::PHA, &MOS6502::IMP, 3},  //
         {"EOR", 0x49, &MOS6502::EOR, &MOS6502::IMM, 2},  //
-        {"LSR", 0x4A, &MOS6502::LAR, &MOS6502::IMP, 2},  // LSR with Acc => LAR
+        {"LSR", 0x4A, &MOS6502::LSA, &MOS6502::IMP, 2},  // LSR with Acc => LSA
         {"XXX", 0x4B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
         {"JMP", 0x4C, &MOS6502::JMP, &MOS6502::ABS, 3},  //
         {"EOR", 0x4D, &MOS6502::EOR, &MOS6502::ABS, 4},  //
         {"LSR", 0x4E, &MOS6502::LSR, &MOS6502::ABS, 6},  //
-        {"XXX", 0x4F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SRE", 0x4F, &MOS6502::SRE, &MOS6502::ABS, 6},  // Unofficial
 
         {"BVC", 0x50, &MOS6502::BVC, &MOS6502::REL, 2},  //
         {"EOR", 0x51, &MOS6502::EOR, &MOS6502::IZY, 5},  //
         {"XXX", 0x52, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x53, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x54, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SRE", 0x53, &MOS6502::SRE, &MOS6502::IZY, 8},  // Unofficial
+        {"NOP", 0x54, &MOS6502::NOP, &MOS6502::ZPX, 4},  // Unofficial
         {"EOR", 0x55, &MOS6502::EOR, &MOS6502::ZPX, 4},  //
         {"LSR", 0x56, &MOS6502::LSR, &MOS6502::ZPX, 6},  //
-        {"XXX", 0x57, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SRE", 0x57, &MOS6502::SRE, &MOS6502::ZPX, 6},  // Unofficial
         {"CLI", 0x58, &MOS6502::CLI, &MOS6502::IMP, 2},  //
         {"EOR", 0x59, &MOS6502::EOR, &MOS6502::ABY, 4},  //
-        {"NOP", 0x5A, &MOS6502::NOP, &MOS6502::IMP, 2},  //
-        {"XXX", 0x5B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x5C, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0x5A, &MOS6502::NOP, &MOS6502::IMP, 2},  // Unofficial
+        {"SRE", 0x5B, &MOS6502::SRE, &MOS6502::ABY, 7},  // Unofficial
+        {"NOP", 0x5C, &MOS6502::NOP, &MOS6502::ABX, 4},  // Unofficial
         {"EOR", 0x5D, &MOS6502::EOR, &MOS6502::ABX, 4},  //
         {"LSR", 0x5E, &MOS6502::LSR, &MOS6502::ABX, 7},  //
-        {"XXX", 0x5F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SRE", 0x5F, &MOS6502::SRE, &MOS6502::ABX, 7},  // Unofficial
 
         {"RTS", 0x60, &MOS6502::RTS, &MOS6502::IMP, 6},  //
         {"ADC", 0x61, &MOS6502::ADC, &MOS6502::IZX, 6},  //
         {"XXX", 0x62, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x63, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x64, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RRA", 0x63, &MOS6502::RRA, &MOS6502::IZX, 8},  // Unofficial
+        {"NOP", 0x64, &MOS6502::NOP, &MOS6502::ZP0, 3},  // Unofficial
         {"ADC", 0x65, &MOS6502::ADC, &MOS6502::ZP0, 3},  //
         {"ROR", 0x66, &MOS6502::ROR, &MOS6502::ZP0, 5},  //
-        {"XXX", 0x67, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RRA", 0x67, &MOS6502::RRA, &MOS6502::ZP0, 5},  // Unofficial
         {"PLA", 0x68, &MOS6502::PLA, &MOS6502::IMP, 4},  //
         {"ADC", 0x69, &MOS6502::ADC, &MOS6502::IMM, 2},  //
-        {"ROR", 0x6A, &MOS6502::RAR, &MOS6502::IMP, 2},  //  ROR with Acc => RAR
+        {"ROR", 0x6A, &MOS6502::RAA, &MOS6502::IMP, 2},  //  ROR with Acc => RAA
         {"XXX", 0x6B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
         {"JMP", 0x6C, &MOS6502::JMP, &MOS6502::IND, 5},  //
         {"ADC", 0x6D, &MOS6502::ADC, &MOS6502::ABS, 4},  //
         {"ROR", 0x6E, &MOS6502::ROR, &MOS6502::ABS, 6},  //
-        {"XXX", 0x6F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RRA", 0x6F, &MOS6502::RRA, &MOS6502::ABS, 6},  // Unofficial
 
         {"BVS", 0x70, &MOS6502::BVS, &MOS6502::REL, 2},  //
         {"ADC", 0x71, &MOS6502::ADC, &MOS6502::IZY, 5},  //
         {"XXX", 0x72, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x73, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x74, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RRA", 0x73, &MOS6502::RRA, &MOS6502::IZY, 8},  // Unofficial
+        {"NOP", 0x74, &MOS6502::NOP, &MOS6502::ZPX, 4},  // Unofficial
         {"ADC", 0x75, &MOS6502::ADC, &MOS6502::ZPX, 4},  //
         {"ROR", 0x76, &MOS6502::ROR, &MOS6502::ZPX, 6},  //
-        {"XXX", 0x77, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RRA", 0x77, &MOS6502::RRA, &MOS6502::ZPX, 6},  // Unofficial
         {"SEI", 0x78, &MOS6502::SEI, &MOS6502::IMP, 2},  //
         {"ADC", 0x79, &MOS6502::ADC, &MOS6502::ABY, 4},  //
-        {"NOP", 0x7A, &MOS6502::NOP, &MOS6502::IMP, 2},  //
-        {"XXX", 0x7B, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x7C, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0x7A, &MOS6502::NOP, &MOS6502::IMP, 2},  // Unofficial
+        {"RRA", 0x7B, &MOS6502::RRA, &MOS6502::ABY, 7},  // Unofficial
+        {"NOP", 0x7C, &MOS6502::NOP, &MOS6502::ABX, 4},  // Unofficial
         {"ADC", 0x7D, &MOS6502::ADC, &MOS6502::ABX, 4},  //
         {"ROR", 0x7E, &MOS6502::ROR, &MOS6502::ABX, 7},  //
-        {"XXX", 0x7F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"RRA", 0x7F, &MOS6502::RRA, &MOS6502::ABX, 7},  // Unofficial
 
-        {"XXX", 0x80, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0x80, &MOS6502::NOP, &MOS6502::IMM, 2},  // Unofficial
         {"STA", 0x81, &MOS6502::STA, &MOS6502::IZX, 6},  //
         {"XXX", 0x82, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0x83, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SAX", 0x83, &MOS6502::SAX, &MOS6502::IZX, 6},  // Unofficial
         {"STY", 0x84, &MOS6502::STY, &MOS6502::ZP0, 3},  //
         {"STA", 0x85, &MOS6502::STA, &MOS6502::ZP0, 3},  //
         {"STX", 0x86, &MOS6502::STX, &MOS6502::ZP0, 3},  //
-        {"XXX", 0x87, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SAX", 0x87, &MOS6502::SAX, &MOS6502::ZP0, 3},  // Unofficial
         {"DEY", 0x88, &MOS6502::DEY, &MOS6502::IMP, 2},  //
         {"XXX", 0x89, &MOS6502::XXX, &MOS6502::IMP, 0},  //
         {"TXA", 0x8A, &MOS6502::TXA, &MOS6502::IMP, 2},  //
@@ -422,7 +439,7 @@ class MOS6502 {
         {"STY", 0x8C, &MOS6502::STY, &MOS6502::ABS, 4},  //
         {"STA", 0x8D, &MOS6502::STA, &MOS6502::ABS, 4},  //
         {"STX", 0x8E, &MOS6502::STX, &MOS6502::ABS, 4},  //
-        {"XXX", 0x8F, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SAX", 0x8F, &MOS6502::SAX, &MOS6502::ABS, 4},  // Unofficial
 
         {"BCC", 0x90, &MOS6502::BCC, &MOS6502::REL, 2},  //
         {"STA", 0x91, &MOS6502::STA, &MOS6502::IZY, 6},  //
@@ -431,7 +448,7 @@ class MOS6502 {
         {"STY", 0x94, &MOS6502::STY, &MOS6502::ZPX, 4},  //
         {"STA", 0x95, &MOS6502::STA, &MOS6502::ZPX, 4},  //
         {"STX", 0x96, &MOS6502::STX, &MOS6502::ZPY, 4},  //
-        {"XXX", 0x97, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SAX", 0x97, &MOS6502::SAX, &MOS6502::ZPY, 4},  // Unofficial
         {"TYA", 0x98, &MOS6502::TYA, &MOS6502::IMP, 2},  //
         {"STA", 0x99, &MOS6502::STA, &MOS6502::ABY, 5},  //
         {"TXS", 0x9A, &MOS6502::TXS, &MOS6502::IMP, 2},  //
@@ -444,28 +461,28 @@ class MOS6502 {
         {"LDY", 0xA0, &MOS6502::LDY, &MOS6502::IMM, 2},  //
         {"LDA", 0xA1, &MOS6502::LDA, &MOS6502::IZX, 6},  //
         {"LDX", 0xA2, &MOS6502::LDX, &MOS6502::IMM, 2},  //
-        {"XXX", 0xA3, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"LAX", 0xA3, &MOS6502::LAX, &MOS6502::IZX, 6},  // Unofficial
         {"LDY", 0xA4, &MOS6502::LDY, &MOS6502::ZP0, 3},  //
         {"LDA", 0xA5, &MOS6502::LDA, &MOS6502::ZP0, 3},  //
         {"LDX", 0xA6, &MOS6502::LDX, &MOS6502::ZP0, 3},  //
-        {"XXX", 0xA7, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"LAX", 0xA7, &MOS6502::LAX, &MOS6502::ZP0, 3},  // Unofficial
         {"TAY", 0xA8, &MOS6502::TAY, &MOS6502::IMP, 2},  //
         {"LDA", 0xA9, &MOS6502::LDA, &MOS6502::IMM, 2},  //
         {"TAX", 0xAA, &MOS6502::TAX, &MOS6502::IMP, 2},  //
-        {"XXX", 0xAB, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"LAX", 0xAB, &MOS6502::LAX, &MOS6502::IMM, 2},  // Unofficial
         {"LDY", 0xAC, &MOS6502::LDY, &MOS6502::ABS, 4},  //
         {"LDA", 0xAD, &MOS6502::LDA, &MOS6502::ABS, 4},  //
         {"LDX", 0xAE, &MOS6502::LDX, &MOS6502::ABS, 4},  //
-        {"XXX", 0xAF, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"LAX", 0xAF, &MOS6502::LAX, &MOS6502::ABS, 4},  // Unofficial
 
         {"BCS", 0xB0, &MOS6502::BCS, &MOS6502::REL, 2},  //
         {"LDA", 0xB1, &MOS6502::LDA, &MOS6502::IZY, 5},  //
         {"XXX", 0xB2, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xB3, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"LAX", 0xB3, &MOS6502::LAX, &MOS6502::IZY, 5},  // Unofficial
         {"LDY", 0xB4, &MOS6502::LDY, &MOS6502::ZPX, 4},  //
         {"LDA", 0xB5, &MOS6502::LDA, &MOS6502::ZPX, 4},  //
         {"LDX", 0xB6, &MOS6502::LDX, &MOS6502::ZPY, 4},  //
-        {"XXX", 0xB7, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"LAX", 0xB7, &MOS6502::LAX, &MOS6502::ZPY, 4},  // Unofficial
         {"CLV", 0xB8, &MOS6502::CLV, &MOS6502::IMP, 2},  //
         {"LDA", 0xB9, &MOS6502::LDA, &MOS6502::ABY, 4},  //
         {"TSX", 0xBA, &MOS6502::TSX, &MOS6502::IMP, 2},  //
@@ -473,16 +490,16 @@ class MOS6502 {
         {"LDY", 0xBC, &MOS6502::LDY, &MOS6502::ABX, 4},  //
         {"LDA", 0xBD, &MOS6502::LDA, &MOS6502::ABX, 4},  //
         {"LDX", 0xBE, &MOS6502::LDX, &MOS6502::ABY, 4},  //
-        {"XXX", 0xBF, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"LAX", 0xBF, &MOS6502::LAX, &MOS6502::ABY, 4},  // Unofficial
 
         {"CPY", 0xC0, &MOS6502::CPY, &MOS6502::IMM, 2},  //
         {"CMP", 0xC1, &MOS6502::CMP, &MOS6502::IZX, 6},  //
         {"XXX", 0xC2, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xC3, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"DCP", 0xC3, &MOS6502::DCP, &MOS6502::IZX, 8},  // Unofficial
         {"CPY", 0xC4, &MOS6502::CPY, &MOS6502::ZP0, 3},  //
         {"CMP", 0xC5, &MOS6502::CMP, &MOS6502::ZP0, 3},  //
         {"DEC", 0xC6, &MOS6502::DEC, &MOS6502::ZP0, 5},  //
-        {"XXX", 0xC7, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"DCP", 0xC7, &MOS6502::DCP, &MOS6502::ZP0, 5},  // Unofficial
         {"INY", 0xC8, &MOS6502::INY, &MOS6502::IMP, 2},  //
         {"CMP", 0xC9, &MOS6502::CMP, &MOS6502::IMM, 2},  //
         {"DEX", 0xCA, &MOS6502::DEX, &MOS6502::IMP, 2},  //
@@ -490,58 +507,58 @@ class MOS6502 {
         {"CPY", 0xCC, &MOS6502::CPY, &MOS6502::ABS, 4},  //
         {"CMP", 0xCD, &MOS6502::CMP, &MOS6502::ABS, 4},  //
         {"DEC", 0xCE, &MOS6502::DEC, &MOS6502::ABS, 6},  //
-        {"XXX", 0xCF, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"DCP", 0xCF, &MOS6502::DCP, &MOS6502::ABS, 6},  // Unofficial
 
         {"BNE", 0xD0, &MOS6502::BNE, &MOS6502::REL, 2},  //
         {"CMP", 0xD1, &MOS6502::CMP, &MOS6502::IZY, 5},  //
         {"XXX", 0xD2, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xD3, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xD4, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"DCP", 0xD3, &MOS6502::DCP, &MOS6502::IZY, 8},  // Unofficial
+        {"NOP", 0xD4, &MOS6502::NOP, &MOS6502::ZPX, 4},  // Unofficial
         {"CMP", 0xD5, &MOS6502::CMP, &MOS6502::ZPX, 4},  //
         {"DEC", 0xD6, &MOS6502::DEC, &MOS6502::ZPX, 6},  //
-        {"XXX", 0xD7, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"DCP", 0xD7, &MOS6502::DCP, &MOS6502::ZPX, 6},  // Unofficial
         {"CLD", 0xD8, &MOS6502::CLD, &MOS6502::IMP, 2},  //
         {"CMP", 0xD9, &MOS6502::CMP, &MOS6502::ABY, 4},  //
-        {"NOP", 0xDA, &MOS6502::NOP, &MOS6502::IMP, 2},  //
-        {"XXX", 0xDB, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xDC, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0xDA, &MOS6502::NOP, &MOS6502::IMP, 2},  // Unofficial
+        {"DCP", 0xDB, &MOS6502::DCP, &MOS6502::ABY, 7},  // Unofficial
+        {"NOP", 0xDC, &MOS6502::NOP, &MOS6502::ABX, 4},  // Unofficial
         {"CMP", 0xDD, &MOS6502::CMP, &MOS6502::ABX, 4},  //
         {"DEC", 0xDE, &MOS6502::DEC, &MOS6502::ABX, 7},  //
-        {"XXX", 0xDF, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"DCP", 0xDF, &MOS6502::DCP, &MOS6502::ABX, 7},  // Unofficial
 
         {"CPX", 0xE0, &MOS6502::CPX, &MOS6502::IMM, 2},  //
-        {"SBC", 0xE1, &MOS6502::SBC, &MOS6502::INX, 6},  //
+        {"SBC", 0xE1, &MOS6502::SBC, &MOS6502::IZX, 6},  //
         {"XXX", 0xE2, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xE3, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"ISC", 0xE3, &MOS6502::ISC, &MOS6502::IZX, 8},  // Unofficial
         {"CPX", 0xE4, &MOS6502::CPX, &MOS6502::ZP0, 3},  //
         {"SBC", 0xE5, &MOS6502::SBC, &MOS6502::ZP0, 3},  //
         {"INC", 0xE6, &MOS6502::INC, &MOS6502::ZP0, 5},  //
-        {"XXX", 0xE7, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"ISC", 0xE7, &MOS6502::ISC, &MOS6502::ZP0, 5},  // Unofficial
         {"INX", 0xE8, &MOS6502::INX, &MOS6502::IMP, 2},  //
         {"SBC", 0xE9, &MOS6502::SBC, &MOS6502::IMM, 2},  //
         {"NOP", 0xEA, &MOS6502::NOP, &MOS6502::IMP, 2},  //
-        {"XXX", 0xEB, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"SBC", 0xEB, &MOS6502::SBC, &MOS6502::IMM, 2},  // Unofficial
         {"CPX", 0xEC, &MOS6502::CPX, &MOS6502::ABS, 4},  //
         {"SBC", 0xED, &MOS6502::SBC, &MOS6502::ABS, 4},  //
         {"INC", 0xEE, &MOS6502::INC, &MOS6502::ABS, 6},  //
-        {"XXX", 0xEF, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"ISC", 0xEF, &MOS6502::ISC, &MOS6502::ABS, 6},  // Unofficial
 
         {"BEQ", 0xF0, &MOS6502::BEQ, &MOS6502::REL, 2},  //
-        {"SBC", 0xF1, &MOS6502::SBC, &MOS6502::INY, 5},  //
+        {"SBC", 0xF1, &MOS6502::SBC, &MOS6502::IZY, 5},  //
         {"XXX", 0xF2, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xF3, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xF4, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"ISC", 0xF3, &MOS6502::ISC, &MOS6502::IZY, 8},  // Unofficial
+        {"NOP", 0xF4, &MOS6502::NOP, &MOS6502::ZPX, 4},  // Unofficial
         {"SBC", 0xF5, &MOS6502::SBC, &MOS6502::ZPX, 4},  //
         {"INC", 0xF6, &MOS6502::INC, &MOS6502::ZPX, 6},  //
-        {"XXX", 0xF7, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"ISC", 0xF7, &MOS6502::ISC, &MOS6502::ZPX, 6},  // Unofficial
         {"SED", 0xF8, &MOS6502::SED, &MOS6502::IMP, 2},  //
         {"SBC", 0xF9, &MOS6502::SBC, &MOS6502::ABY, 4},  //
-        {"NOP", 0xFA, &MOS6502::NOP, &MOS6502::IMP, 2},  //
-        {"XXX", 0xFB, &MOS6502::XXX, &MOS6502::IMP, 0},  //
-        {"XXX", 0xFC, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"NOP", 0xFA, &MOS6502::NOP, &MOS6502::IMP, 2},  // Unofficial
+        {"ISC", 0xFB, &MOS6502::ISC, &MOS6502::ABY, 7},  // Unofficial
+        {"NOP", 0xFC, &MOS6502::NOP, &MOS6502::ABX, 4},  // Unofficial
         {"SBC", 0xFD, &MOS6502::SBC, &MOS6502::ABX, 4},  //
-        {"INC", 0xFE, &MOS6502::SBC, &MOS6502::ABX, 7},  //
-        {"XXX", 0xFF, &MOS6502::XXX, &MOS6502::IMP, 0},  //
+        {"INC", 0xFE, &MOS6502::INC, &MOS6502::ABX, 7},  //
+        {"ISC", 0xFF, &MOS6502::ISC, &MOS6502::ABX, 7},  // Unofficial
     }};
 };
 

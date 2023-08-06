@@ -3,7 +3,7 @@
 
 /**
  * Main module reference: https://www.nesdev.org/obelisk-6502-guide/reference.html
- * Help reference: https://www.pagetable.com/c64ref/6502/?tab=2#CMP
+ * Detailed reference (with illegal opcodes): https://www.pagetable.com/c64ref/6502/?tab=2
  */
 
 namespace NES {
@@ -14,8 +14,8 @@ namespace NES {
 uint8_t MOS6502::MOS6502::LDA() {
     r_A = fetched;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 1;
 }
 
@@ -25,8 +25,8 @@ uint8_t MOS6502::MOS6502::LDA() {
 uint8_t MOS6502::MOS6502::LDX() {
     r_X = fetched;
 
-    r_status.Z = r_X == 0x00;
-    r_status.N = r_X & (1 << 7);
+    setFlag(Z, r_X == 0x00);
+    setFlag(N, r_X & (1 << 7));
     return 1;
 }
 
@@ -36,8 +36,8 @@ uint8_t MOS6502::MOS6502::LDX() {
 uint8_t MOS6502::MOS6502::LDY() {
     r_Y = fetched;
 
-    r_status.Z = r_Y == 0x00;
-    r_status.N = r_Y & (1 << 7);
+    setFlag(Z, r_Y == 0x00);
+    setFlag(N, r_Y & (1 << 7));
     return 1;
 }
 
@@ -71,8 +71,8 @@ uint8_t MOS6502::MOS6502::STY() {
 uint8_t MOS6502::TAX() {
     r_X = r_A;
 
-    r_status.Z = r_X == 0x00;
-    r_status.N = r_X & (1 << 7);
+    setFlag(Z, r_X == 0x00);
+    setFlag(N, r_X & (1 << 7));
     return 0;
 }
 
@@ -82,8 +82,8 @@ uint8_t MOS6502::TAX() {
 uint8_t MOS6502::TAY() {
     r_Y = r_A;
 
-    r_status.Z = r_Y == 0x00;
-    r_status.N = r_Y & (1 << 7);
+    setFlag(Z, r_Y == 0x00);
+    setFlag(N, r_Y & (1 << 7));
     return 0;
 }
 
@@ -93,8 +93,8 @@ uint8_t MOS6502::TAY() {
 uint8_t MOS6502::TXA() {
     r_A = r_X;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 0;
 }
 
@@ -102,10 +102,10 @@ uint8_t MOS6502::TXA() {
  * Copies the current contents of the Y register into the accumulator and sets the zero and negative flags as appropriate.
  */
 uint8_t MOS6502::TYA() {
-    r_Y = r_A;
+    r_A = r_Y;
 
-    r_status.Z = r_Y == 0x00;
-    r_status.N = r_Y & (1 << 7);
+    setFlag(Z, r_Y == 0x00);
+    setFlag(N, r_Y & (1 << 7));
     return 0;
 }
 
@@ -115,8 +115,8 @@ uint8_t MOS6502::TYA() {
 uint8_t MOS6502::TSX() {
     r_X = r_SP;
 
-    r_status.Z = r_X == 0x00;
-    r_status.N = r_X & (1 << 7);
+    setFlag(Z, r_X == 0x00);
+    setFlag(N, r_X & (1 << 7));
     return 0;
 }
 
@@ -143,7 +143,7 @@ uint8_t MOS6502::PHP() {
     // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
     // The status bits pushed on the stack by PHP have the breakpoint bit set.
     // TODO: do we really need to simulate this?
-    bus.write(STACK_PAGE + (r_SP--), r_status.value);
+    bus.write(STACK_PAGE + (r_SP--), r_status | B | U);
     return 0;
 }
 
@@ -153,8 +153,8 @@ uint8_t MOS6502::PHP() {
 uint8_t MOS6502::PLA() {
     r_A = bus.read(STACK_PAGE + (++r_SP));
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 0;
 }
 
@@ -162,7 +162,7 @@ uint8_t MOS6502::PLA() {
  * Pulls an 8 bit value from the stack and into the processor flags. The flags will take on new states as determined by the value pulled.
  */
 uint8_t MOS6502::PLP() {
-    r_status.value = bus.read(STACK_PAGE + (++r_SP));
+    r_status = bus.read(STACK_PAGE + (++r_SP));
     return 0;
 }
 
@@ -174,8 +174,8 @@ uint8_t MOS6502::PLP() {
 uint8_t MOS6502::AND() {
     r_A = r_A & fetched;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 1;
 }
 
@@ -187,8 +187,8 @@ uint8_t MOS6502::AND() {
 uint8_t MOS6502::EOR() {
     r_A = r_A ^ fetched;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 1;
 }
 
@@ -200,8 +200,8 @@ uint8_t MOS6502::EOR() {
 uint8_t MOS6502::ORA() {
     r_A = r_A | fetched;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 1;
 }
 
@@ -213,9 +213,9 @@ uint8_t MOS6502::ORA() {
  * Operation: Z, V, N <- A & M, M7, M6
  */
 uint8_t MOS6502::BIT() {
-    r_status.Z = (r_A & fetched) == 0x00;
-    r_status.V = fetched & (1 << 6);
-    r_status.N = fetched & (1 << 7);
+    setFlag(Z, (r_A & fetched) == 0x00);
+    setFlag(V, fetched & (1 << 6));
+    setFlag(N, fetched & (1 << 7));
     return 0;
 }
 
@@ -230,14 +230,14 @@ uint8_t MOS6502::BIT() {
  * Reference: https://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
  */
 uint8_t MOS6502::ADC() {
-    uint16_t sum = r_A + fetched + r_status.C;
+    uint16_t sum = r_A + fetched + getFlag(C);
 
     // Overflow happens if sign of r_A and fetched is equal but sign of sum is different.
-    r_status.V = ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7);  // signed overflow
+    setFlag(V, ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7));  // signed overflow
 
-    r_status.C = sum > 0xFF;  // unsigned overflow
-    r_status.Z = static_cast<uint8_t>(sum) == 0x00;
-    r_status.N = sum & (1 << 7);
+    setFlag(C, sum > 0xFF);  // unsigned overflow
+    setFlag(Z, static_cast<uint8_t>(sum) == 0x00);
+    setFlag(N, sum & (1 << 7));
 
     r_A = static_cast<uint8_t>(sum);
     return 1;
@@ -264,9 +264,9 @@ uint8_t MOS6502::SBC() {
  * Operation: C, Z, N <- A - M
  */
 uint8_t MOS6502::CMP() {
-    r_status.C = r_A >= fetched;
-    r_status.Z = r_A == fetched;
-    r_status.N = (r_A - fetched) & (1 << 7);
+    setFlag(C, r_A >= fetched);
+    setFlag(Z, r_A == fetched);
+    setFlag(N, (r_A - fetched) & (1 << 7));
     return 1;
 }
 
@@ -276,9 +276,9 @@ uint8_t MOS6502::CMP() {
  * Operation: C, Z, N <- X - M
  */
 uint8_t MOS6502::CPX() {
-    r_status.C = r_X >= fetched;
-    r_status.Z = r_X == fetched;
-    r_status.N = (r_X - fetched) & (1 << 7);
+    setFlag(C, r_X >= fetched);
+    setFlag(Z, r_X == fetched);
+    setFlag(N, (r_X - fetched) & (1 << 7));
     return 0;
 }
 
@@ -288,9 +288,9 @@ uint8_t MOS6502::CPX() {
  * Operation: C, Z, N <- Y - M
  */
 uint8_t MOS6502::CPY() {
-    r_status.C = r_Y >= fetched;
-    r_status.Z = r_Y == fetched;
-    r_status.N = (r_Y - fetched) & (1 << 7);
+    setFlag(C, r_Y >= fetched);
+    setFlag(Z, r_Y == fetched);
+    setFlag(N, (r_Y - fetched) & (1 << 7));
     return 0;
 }
 
@@ -303,8 +303,8 @@ uint8_t MOS6502::INC() {
     fetched++;
     bus.write(addr, fetched);
 
-    r_status.Z = fetched == 0x00;
-    r_status.N = fetched & (1 << 7);
+    setFlag(Z, fetched == 0x00);
+    setFlag(N, fetched & (1 << 7));
     return 0;
 }
 
@@ -316,8 +316,8 @@ uint8_t MOS6502::INC() {
 uint8_t MOS6502::INX() {
     r_X++;
 
-    r_status.Z = r_X == 0x00;
-    r_status.N = r_X & (1 << 7);
+    setFlag(Z, r_X == 0x00);
+    setFlag(N, r_X & (1 << 7));
     return 0;
 }
 
@@ -329,8 +329,8 @@ uint8_t MOS6502::INX() {
 uint8_t MOS6502::INY() {
     r_Y++;
 
-    r_status.Z = r_Y == 0x00;
-    r_status.N = r_Y & (1 << 7);
+    setFlag(Z, r_Y == 0x00);
+    setFlag(N, r_Y & (1 << 7));
     return 0;
 }
 
@@ -343,8 +343,8 @@ uint8_t MOS6502::DEC() {
     fetched--;
     bus.write(addr, fetched);
 
-    r_status.Z = fetched == 0x00;
-    r_status.N = fetched & (1 << 7);
+    setFlag(Z, fetched == 0x00);
+    setFlag(N, fetched & (1 << 7));
     return 0;
 }
 
@@ -356,8 +356,8 @@ uint8_t MOS6502::DEC() {
 uint8_t MOS6502::DEX() {
     r_X--;
 
-    r_status.Z = r_X == 0x00;
-    r_status.N = r_X & (1 << 7);
+    setFlag(Z, r_X == 0x00);
+    setFlag(N, r_X & (1 << 7));
     return 0;
 }
 
@@ -369,8 +369,8 @@ uint8_t MOS6502::DEX() {
 uint8_t MOS6502::DEY() {
     r_Y--;
 
-    r_status.Z = r_Y == 0x00;
-    r_status.N = r_Y & (1 << 7);
+    setFlag(Z, r_Y == 0x00);
+    setFlag(N, r_Y & (1 << 7));
     return 0;
 }
 
@@ -383,13 +383,14 @@ uint8_t MOS6502::DEY() {
  */
 uint8_t MOS6502::ASL() {
     // Save old bit 7 in the carry flag
-    r_status.C = fetched & (1 << 7);
+    bool oldC = fetched & (1 << 7);
 
     fetched <<= 1;
     bus.write(addr, fetched);
 
-    r_status.Z = fetched == 0x00;
-    r_status.N = fetched & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, fetched == 0x00);
+    setFlag(N, fetched & (1 << 7));
     return 0;
 }
 
@@ -397,14 +398,15 @@ uint8_t MOS6502::ASL() {
  * Same as ASL, but operating with the Accumulator.
  * Operation: C, Z, N <- A * 2
  */
-uint8_t MOS6502::AAL() {
+uint8_t MOS6502::ASA() {
     // Save old bit 7 in the carry flag
-    r_status.C = r_A & (1 << 7);
+    bool oldC = r_A & (1 << 7);
 
     r_A <<= 1;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 0;
 }
 
@@ -415,13 +417,14 @@ uint8_t MOS6502::AAL() {
  */
 uint8_t MOS6502::LSR() {
     // Save old bit 0 in the carry flag
-    r_status.C = fetched & (1 << 0);
+    bool oldC = fetched & (1 << 0);
 
     fetched >>= 1;
     bus.write(addr, fetched);
 
-    r_status.Z = fetched == 0x00;
-    r_status.N = fetched & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, fetched == 0x00);
+    setFlag(N, fetched & (1 << 7));
     return 0;
 }
 
@@ -429,14 +432,15 @@ uint8_t MOS6502::LSR() {
  * Same as LSR, but operating with the Accumulator.
  * Operation: C, Z, N <- A / 2
  */
-uint8_t MOS6502::LAR() {
+uint8_t MOS6502::LSA() {
     // Save old bit 0 in the carry flag
-    r_status.C = r_A & (1 << 0);
+    bool oldC = r_A & (1 << 0);
 
     r_A >>= 1;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 0;
 }
 
@@ -448,14 +452,15 @@ uint8_t MOS6502::LAR() {
  */
 uint8_t MOS6502::ROL() {
     // Save old bit 7 in the carry flag
-    r_status.C = fetched & (1 << 7);
+    bool oldC = fetched & (1 << 7);
 
     fetched <<= 1;
-    fetched |= r_status.C;
+    fetched |= getFlag(C);
     bus.write(addr, fetched);
 
-    r_status.Z = fetched == 0x00;
-    r_status.N = fetched & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, fetched == 0x00);
+    setFlag(N, fetched & (1 << 7));
     return 0;
 }
 
@@ -463,15 +468,16 @@ uint8_t MOS6502::ROL() {
  * Same as ROL, but operating with the Accumulator.
  * Operation: C, Z, N <- A * 2 + C
  */
-uint8_t MOS6502::RAL() {
+uint8_t MOS6502::ROA() {
     // Save old bit 7 in the carry flag
-    r_status.C = r_A & (1 << 7);
+    bool oldC = r_A & (1 << 7);
 
     r_A <<= 1;
-    r_A |= r_status.C;
+    r_A |= getFlag(C);
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 0;
 }
 
@@ -483,14 +489,15 @@ uint8_t MOS6502::RAL() {
  */
 uint8_t MOS6502::ROR() {
     // Save old bit 0 in the carry flag
-    r_status.C = fetched & (1 << 0);
+    bool oldC = fetched & (1 << 0);
 
     fetched >>= 1;
-    fetched |= r_status.C << 7;
+    fetched |= getFlag(C) << 7;
     bus.write(addr, fetched);
 
-    r_status.Z = fetched == 0x00;
-    r_status.N = fetched & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, fetched == 0x00);
+    setFlag(N, fetched & (1 << 7));
     return 0;
 }
 
@@ -498,15 +505,16 @@ uint8_t MOS6502::ROR() {
  * Same as ROR, but operating with the Accumulator.
  * Operation: C, Z, N <- A / 2 + C * 128
  */
-uint8_t MOS6502::RAR() {
+uint8_t MOS6502::RAA() {
     // Save old bit 0 in the carry flag
-    r_status.C = r_A & (1 << 0);
+    bool oldC = r_A & (1 << 0);
 
     r_A >>= 1;
-    r_A |= r_status.C << 7;
+    r_A |= getFlag(C) << 7;
 
-    r_status.Z = r_A == 0x00;
-    r_status.N = r_A & (1 << 7);
+    setFlag(C, oldC);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
     return 0;
 }
 
@@ -532,7 +540,7 @@ uint8_t MOS6502::JSR() {
     bus.write(STACK_PAGE + (r_SP--), (ret >> 8) & 0x00FF);
     bus.write(STACK_PAGE + (r_SP--), ret & 0x00FF);
 
-    r_PC = fetched;
+    r_PC = addr;
     return 0;
 }
 
@@ -555,12 +563,12 @@ uint8_t MOS6502::RTS() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BCC() {
-    if (!r_status.C) {
+    if (!getFlag(C)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -571,12 +579,12 @@ uint8_t MOS6502::BCC() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BCS() {
-    if (r_status.C) {
+    if (getFlag(C)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -587,12 +595,12 @@ uint8_t MOS6502::BCS() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BNE() {
-    if (!r_status.Z) {
+    if (!getFlag(Z)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -603,12 +611,12 @@ uint8_t MOS6502::BNE() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BEQ() {
-    if (r_status.Z) {
+    if (getFlag(Z)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -619,12 +627,12 @@ uint8_t MOS6502::BEQ() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BPL() {
-    if (!r_status.N) {
+    if (!getFlag(N)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -635,12 +643,12 @@ uint8_t MOS6502::BPL() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BMI() {
-    if (r_status.N) {
+    if (getFlag(N)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -651,12 +659,12 @@ uint8_t MOS6502::BMI() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BVC() {
-    if (!r_status.V) {
+    if (!getFlag(V)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -667,12 +675,12 @@ uint8_t MOS6502::BVC() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BVS() {
-    if (r_status.V) {
+    if (getFlag(V)) {
         uint16_t oldPC = r_PC;
-        r_PC += fetched;
+        r_PC += static_cast<int8_t>(fetched);
 
         // +1 if branch succeeds, +2 if to a new page
-        return 1 + (r_PC & 0xFF00) != (oldPC & 0xFF00);
+        return 1 + static_cast<uint8_t>((r_PC & 0xFF00) != (oldPC & 0xFF00));
     }
 
     return 0;
@@ -682,7 +690,7 @@ uint8_t MOS6502::BVS() {
  * Set the carry flag to zero.
  */
 uint8_t MOS6502::CLC() {
-    r_status.C = 0;
+    setFlag(C, false);
     return 0;
 }
 
@@ -690,7 +698,7 @@ uint8_t MOS6502::CLC() {
  * Sets the decimal mode flag to zero.
  */
 uint8_t MOS6502::CLD() {
-    r_status.D = 0;
+    setFlag(D, false);
     return 0;
 }
 
@@ -698,7 +706,7 @@ uint8_t MOS6502::CLD() {
  * Clears the interrupt disable flag allowing normal interrupt requests to be serviced.
  */
 uint8_t MOS6502::CLI() {
-    r_status.I = 0;
+    setFlag(I, false);
     return 0;
 }
 
@@ -706,7 +714,7 @@ uint8_t MOS6502::CLI() {
  * Clears the overflow flag.
  */
 uint8_t MOS6502::CLV() {
-    r_status.V = 0;
+    setFlag(V, false);
     return 0;
 }
 
@@ -714,7 +722,7 @@ uint8_t MOS6502::CLV() {
  * Set the carry flag to one.
  */
 uint8_t MOS6502::SEC() {
-    r_status.C = 1;
+    setFlag(C, true);
     return 0;
 }
 
@@ -722,7 +730,7 @@ uint8_t MOS6502::SEC() {
  * Set the decimal mode flag to one.
  */
 uint8_t MOS6502::SED() {
-    r_status.D = 1;
+    setFlag(D, true);
     return 0;
 }
 
@@ -730,7 +738,7 @@ uint8_t MOS6502::SED() {
  * Set the interrupt disable flag to one.
  */
 uint8_t MOS6502::SEI() {
-    r_status.I = 1;
+    setFlag(I, true);
     return 0;
 }
 
@@ -740,7 +748,7 @@ uint8_t MOS6502::SEI() {
  * is loaded into the PC and the break flag in the status set to one.
  */
 uint8_t MOS6502::BRK() {
-    r_status.I = 0;
+    setFlag(I, false);
     irq();
     return 0;
 }
@@ -749,7 +757,8 @@ uint8_t MOS6502::BRK() {
  * Does not do anything.
  */
 uint8_t MOS6502::NOP() {
-    return 0;
+    // Addressing mode in illegal instructions can provoke a page boundary crossing
+    return 1;
 }
 
 /* Return from Interrupt.
@@ -757,12 +766,156 @@ uint8_t MOS6502::NOP() {
  * It pulls the processor flags from the stack followed by the program counter.
  */
 uint8_t MOS6502::RTI() {
-    r_status.value = bus.read(STACK_PAGE + (++r_SP));
-    r_status.B = 0;
-    r_status.U = 0;
+    r_status = bus.read(STACK_PAGE + (++r_SP));
+    setFlag(B, false);
+    setFlag(U, false);
 
     r_PC = bus.read(STACK_PAGE + (++r_SP));
     r_PC |= bus.read(STACK_PAGE + (++r_SP)) << 8;
+    return 0;
+}
+
+/* Load Accumulator and Index X.
+ * The undocumented LAX instruction loads the accumulator and the index register X from memory.
+ */
+uint8_t MOS6502::LAX() {
+    r_A = fetched;
+    r_X = fetched;
+
+    setFlag(Z, fetched == 0x00);
+    setFlag(N, fetched & (1 << 7));
+    return 1;
+}
+
+/* Store Accumulator and Index X.
+ * The undocumented SAX instruction performs a bit-by-bit AND operation of the value of the accumulator and the value of the
+ * index register X and stores the result in memory.
+ *
+ * Operation: M <- A & X
+ */
+uint8_t MOS6502::SAX() {
+    bus.write(addr, r_A & r_X);
+    return 0;
+}
+
+/* Decrement Memory and Compare.
+ * This undocumented instruction subtracts 1, in two's complement, from the contents of the addressed memory location.
+ * It then subtracts the contents of memory from the contents of the accumulator.
+ *
+ * Operation: M <- M - 1, C <- A - M
+ */
+uint8_t MOS6502::DCP() {
+    fetched--;
+    bus.write(addr, fetched);
+
+    setFlag(C, r_A >= fetched);
+    setFlag(Z, r_A == fetched);
+    setFlag(N, (r_A - fetched) & (1 << 7));
+    return 0;
+}
+
+/* Increment Memory and Subtract with Carry.
+ * This undocumented instruction adds one to the contents of the addressed memory location.
+ * It then subtracts the contents of memory from the contents of the accumulator plus the negation of the carry bit.
+ *
+ * Operation: M <- M + 1, A <- A - M - (1 - C)
+ */
+uint8_t MOS6502::ISC() {
+    fetched++;
+    bus.write(addr, fetched);
+
+    // ISC does not introduce extra cycles
+    SBC();
+    return 0;
+}
+
+/* Shift Left Memory and OR with Accumulator.
+ * The undocumented SLO instruction shifts the address memory location 1 bit to the left, with the bit 0 always being set to 0 and
+ * the bit 7 output always being contained in the carry flag. It then performs a bit-by-bit "OR" operation on the result and the accumulator
+ * and stores the result in the accumulator.
+ *
+ * Operation: M <- M << 1, A <- A | M
+ */
+uint8_t MOS6502::SLO() {
+    // Save old bit 7 in the carry flag
+    bool oldC = fetched & (1 << 7);
+
+    fetched <<= 1;
+    bus.write(addr, fetched);
+    r_A |= fetched;
+
+    setFlag(C, oldC);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
+    return 0;
+}
+
+/* Rotate Left Memory and AND with Accumulator.
+ * The undocumented RLA instruction shifts the addressed memory left 1 bit, with the input carry being stored in bit 0 and with the input bit 7
+ * being stored in the carry flags. It then performs a bit-by-bit AND operation of the result and the value of the accumulator and stores the
+ * result back in the accumulator.
+ *
+ * Operation: M <- M * 2 + C, A <- A & M
+ */
+uint8_t MOS6502::RLA() {
+    // Save old bit 7 in the carry flag
+    bool oldC = fetched & (1 << 7);
+
+    fetched <<= 1;
+    fetched |= getFlag(C);
+    bus.write(addr, fetched);
+    r_A &= fetched;
+
+    setFlag(C, oldC);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
+    return 0;
+}
+
+/* Shift Right Memory and XOR with Accumulator.
+ * The undocumented SRE instruction shifts the specified memory location 1 bit to the right, with the higher bit of the result always being set to 0,
+ * and the low bit which is shifted out of the field being stored in the carry flag. It then performs a bit-by-bit "EXCLUSIVE OR" of the result and
+ * the value of the accumulator and stores the result in the accumulator.
+ *
+ * Operation: M <- M / 2, A <- A ^ M
+ */
+uint8_t MOS6502::SRE() {
+    // Save old bit 0 in the carry flag
+    bool oldC = fetched & (1 << 0);
+
+    fetched >>= 1;
+    bus.write(addr, fetched);
+    r_A ^= fetched;
+
+    setFlag(C, oldC);
+    setFlag(Z, r_A == 0x00);
+    setFlag(N, r_A & (1 << 7));
+    return 0;
+}
+
+/* Rotate Right Memory and Add with Carry.
+ * The undocumented RRA instruction shifts the addressed memory right 1 bit with bit 0 shifted into the carry and carry shifted into bit 7.
+ * It then adds the result and generated carry to the value of the accumulator and stores the result in the accumulator.
+ *
+ * Operation: M <- M / 2 + C * 128, A <- A + M + C
+ */
+uint8_t MOS6502::RRA() {
+    // Save old bit 0 in the carry flag
+    bool oldC = fetched & (1 << 0);
+
+    fetched >>= 1;
+    fetched |= getFlag(C) << 7;
+    bus.write(addr, fetched);
+    uint16_t sum = r_A + fetched + oldC;
+
+    // Overflow happens if sign of r_A and fetched is equal but sign of sum is different.
+    setFlag(V, ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7));  // signed overflow
+
+    setFlag(C, sum > 0xFF);  // unsigned overflow
+    setFlag(Z, static_cast<uint8_t>(sum) == 0x00);
+    setFlag(N, sum & (1 << 7));
+
+    r_A = static_cast<uint8_t>(sum);
     return 0;
 }
 

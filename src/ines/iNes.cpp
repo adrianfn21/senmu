@@ -4,9 +4,10 @@
 
 namespace iNES {
 
-iNES::iNES(std::string filepath) {
+iNES::iNES(const std::string& filepath) {
     // Open file
     std::ifstream file(filepath, std::ios::binary);
+
     if (!file.is_open()) {
         std::cerr << "Could not open file " << filepath << std::endl;
         exit(1);
