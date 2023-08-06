@@ -1,8 +1,8 @@
 #ifndef NES_EMULATOR_RAM_HPP
 #define NES_EMULATOR_RAM_HPP
 
-#include <array>
 #include <cstdint>
+#include <vector>
 #include "comm/Bus.hpp"
 
 namespace NES {
@@ -18,7 +18,7 @@ class Ram : private BusSubscriber {
     [[nodiscard]] uint8_t readHandler(uint16_t addr) override;
 
   private:
-    std::array<uint8_t, 2 * 1024> memory{};  // 2KB
+    std::vector<uint8_t> memory;
 };
 
 }  // namespace NES

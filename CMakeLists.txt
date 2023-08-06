@@ -15,9 +15,7 @@ endif ()
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -march=native -mtune=native")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wno-unused")
-# Very aggressive compilation options
-#add_compile_options(-ffast-math)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wno-unused -ffast-math")
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-D _DEBUG) # Enable debug mode
@@ -27,9 +25,14 @@ endif ()
 
 #===================== FINDING LIBRARIES ======================#
 find_package(argparse CONFIG REQUIRED)
+find_package(Catch2 CONFIG REQUIRED)
 
-#======================= PROJECT FILES ========================#
+#====================== PROJECT FOLDERS =======================#
 set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/src")
 set(INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
+set(TESTS_DIR "${CMAKE_SOURCE_DIR}/tests")
 
+#===================== BUILD EXECUTABLES ======================#
+include_directories(${INCLUDE_DIR})
 add_subdirectory(src)
+add_subdirectory(tests)

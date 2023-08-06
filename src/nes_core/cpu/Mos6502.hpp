@@ -43,6 +43,36 @@ class MOS6502 {
     void cycle();
 
     /**
+     * @brief Executes a single CPU instruction.
+     */
+    void step();
+
+    /**
+     * @brief Returns the opcode of the current instruction.
+     */
+    [[nodiscard]] constexpr uint8_t getOpcode() const { return opcode; }
+
+    /**
+     * @brief Returns the current value of the program counter.
+     */
+    [[nodiscard]] constexpr uint16_t getPC() const { return r_PC; }
+
+    /**
+     * @brief Sets the value of the program counter.
+     */
+    constexpr void setPC(uint16_t pc) { r_PC = pc; }
+
+    /**
+     * @brief Returns the number of cycles executed.
+     */
+    [[nodiscard]] constexpr uint64_t getCycles() const { return cyclesCounter; }
+
+    /**
+     * @brief Returns the number of instructions executed.
+     */
+    [[nodiscard]] constexpr uint64_t getInstructions() const { return instructionsCounter; }
+
+    /**
      * @brief Resets the CPU.
      *
      * This method resets the CPU to its initial state. It sets the registers to 0, clears the status register
@@ -79,6 +109,10 @@ class MOS6502 {
 
     // Hardcoded address/page where the stack starts
     static constexpr uint16_t STACK_PAGE = 0x0100;
+
+    /* Statistics */
+    uint64_t cyclesCounter;        // Number of cycles executed
+    uint64_t instructionsCounter;  // Number of instructions executed
 
     /* CPU Registers */
     uint16_t r_PC;  // Program Counter

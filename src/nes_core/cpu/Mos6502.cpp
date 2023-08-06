@@ -5,12 +5,15 @@ namespace NES {
 MOS6502::MOS6502(Bus& bus) : bus(bus), cycles(0), opcode(0), fetched(0), addr(0) {
     // TODO: how to initialize this?
     reset();
+    cycles = 0;
 }
 
 MOS6502::~MOS6502() = default;
 
 void MOS6502::cycle() {
     if (cycles == 0) {
+        instructionsCounter++;
+
         opcode = bus.read(r_PC++);
         const OpcodeInst& inst = opcodeLUT[opcode];
 
@@ -23,6 +26,15 @@ void MOS6502::cycle() {
     }
 
     cycles--;
+    cyclesCounter++;
+}
+
+void MOS6502::step() {
+    while (cycles > 0) {
+        cycle();
+    }
+
+    cycle();
 }
 
 void MOS6502::reset() {
