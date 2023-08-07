@@ -14,8 +14,8 @@ namespace NES {
 uint8_t MOS6502::LDA() {
     r_A = fetched;
 
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 1;
 }
 
@@ -25,8 +25,8 @@ uint8_t MOS6502::LDA() {
 uint8_t MOS6502::LDX() {
     r_X = fetched;
 
-    setFlag(Z, r_X == 0x00);
-    setFlag(N, r_X & (1 << 7));
+    r_status[Z] = r_X == 0x00;
+    r_status[N] = r_X & (1 << 7);
     return 1;
 }
 
@@ -36,8 +36,8 @@ uint8_t MOS6502::LDX() {
 uint8_t MOS6502::LDY() {
     r_Y = fetched;
 
-    setFlag(Z, r_Y == 0x00);
-    setFlag(N, r_Y & (1 << 7));
+    r_status[Z] = r_Y == 0x00;
+    r_status[N] = r_Y & (1 << 7);
     return 1;
 }
 
@@ -71,8 +71,8 @@ uint8_t MOS6502::STY() {
 uint8_t MOS6502::TAX() {
     r_X = r_A;
 
-    setFlag(Z, r_X == 0x00);
-    setFlag(N, r_X & (1 << 7));
+    r_status[Z] = r_X == 0x00;
+    r_status[N] = r_X & (1 << 7);
     return 0;
 }
 
@@ -82,8 +82,8 @@ uint8_t MOS6502::TAX() {
 uint8_t MOS6502::TAY() {
     r_Y = r_A;
 
-    setFlag(Z, r_Y == 0x00);
-    setFlag(N, r_Y & (1 << 7));
+    r_status[Z] = r_Y == 0x00;
+    r_status[N] = r_Y & (1 << 7);
     return 0;
 }
 
@@ -93,8 +93,8 @@ uint8_t MOS6502::TAY() {
 uint8_t MOS6502::TXA() {
     r_A = r_X;
 
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -104,8 +104,8 @@ uint8_t MOS6502::TXA() {
 uint8_t MOS6502::TYA() {
     r_A = r_Y;
 
-    setFlag(Z, r_Y == 0x00);
-    setFlag(N, r_Y & (1 << 7));
+    r_status[Z] = r_Y == 0x00;
+    r_status[N] = r_Y & (1 << 7);
     return 0;
 }
 
@@ -115,8 +115,8 @@ uint8_t MOS6502::TYA() {
 uint8_t MOS6502::TSX() {
     r_X = r_SP;
 
-    setFlag(Z, r_X == 0x00);
-    setFlag(N, r_X & (1 << 7));
+    r_status[Z] = r_X == 0x00;
+    r_status[N] = r_X & (1 << 7);
     return 0;
 }
 
@@ -142,8 +142,10 @@ uint8_t MOS6502::PHA() {
 uint8_t MOS6502::PHP() {
     // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
     // The status bits pushed on the stack by PHP have the breakpoint bit set.
-    // TODO: do we really need to simulate this?
-    bus.write(STACK_PAGE + (r_SP--), r_status | B | U);
+    std::bitset<8> statusCopy = r_status;
+    statusCopy[B] = true;
+    statusCopy[U] = true;
+    bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>(statusCopy.to_ulong()));
     return 0;
 }
 
@@ -153,8 +155,8 @@ uint8_t MOS6502::PHP() {
 uint8_t MOS6502::PLA() {
     r_A = bus.read(STACK_PAGE + (++r_SP));
 
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -174,8 +176,8 @@ uint8_t MOS6502::PLP() {
 uint8_t MOS6502::AND() {
     r_A = r_A & fetched;
 
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 1;
 }
 
@@ -187,8 +189,8 @@ uint8_t MOS6502::AND() {
 uint8_t MOS6502::EOR() {
     r_A = r_A ^ fetched;
 
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 1;
 }
 
@@ -200,8 +202,8 @@ uint8_t MOS6502::EOR() {
 uint8_t MOS6502::ORA() {
     r_A = r_A | fetched;
 
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 1;
 }
 
@@ -213,9 +215,9 @@ uint8_t MOS6502::ORA() {
  * Operation: Z, V, N <- A & M, M7, M6
  */
 uint8_t MOS6502::BIT() {
-    setFlag(Z, (r_A & fetched) == 0x00);
-    setFlag(V, fetched & (1 << 6));
-    setFlag(N, fetched & (1 << 7));
+    r_status[Z] = (r_A & fetched) == 0x00;
+    r_status[V] = fetched & (1 << 6);
+    r_status[N] = fetched & (1 << 7);
     return 0;
 }
 
@@ -230,14 +232,14 @@ uint8_t MOS6502::BIT() {
  * Reference: https://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
  */
 uint8_t MOS6502::ADC() {
-    auto sum = static_cast<uint16_t>(r_A + fetched + getFlag(C));
+    auto sum = static_cast<uint16_t>(r_A + fetched + r_status[C]);
 
     // Overflow happens if sign of r_A and fetched is equal but sign of sum is different.
-    setFlag(V, ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7));  // signed overflow
+    r_status[V] = ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7);  // signed overflow
 
-    setFlag(C, sum > 0xFF);  // unsigned overflow
-    setFlag(Z, static_cast<uint8_t>(sum) == 0x00);
-    setFlag(N, sum & (1 << 7));
+    r_status[C] = sum > 0xFF;  // unsigned overflow
+    r_status[Z] = static_cast<uint8_t>(sum) == 0x00;
+    r_status[N] = sum & (1 << 7);
 
     r_A = static_cast<uint8_t>(sum);
     return 1;
@@ -264,9 +266,9 @@ uint8_t MOS6502::SBC() {
  * Operation: C, Z, N <- A - M
  */
 uint8_t MOS6502::CMP() {
-    setFlag(C, r_A >= fetched);
-    setFlag(Z, r_A == fetched);
-    setFlag(N, (r_A - fetched) & (1 << 7));
+    r_status[C] = r_A >= fetched;
+    r_status[Z] = r_A == fetched;
+    r_status[N] = (r_A - fetched) & (1 << 7);
     return 1;
 }
 
@@ -276,9 +278,9 @@ uint8_t MOS6502::CMP() {
  * Operation: C, Z, N <- X - M
  */
 uint8_t MOS6502::CPX() {
-    setFlag(C, r_X >= fetched);
-    setFlag(Z, r_X == fetched);
-    setFlag(N, (r_X - fetched) & (1 << 7));
+    r_status[C] = r_X >= fetched;
+    r_status[Z] = r_X == fetched;
+    r_status[N] = (r_X - fetched) & (1 << 7);
     return 0;
 }
 
@@ -288,9 +290,9 @@ uint8_t MOS6502::CPX() {
  * Operation: C, Z, N <- Y - M
  */
 uint8_t MOS6502::CPY() {
-    setFlag(C, r_Y >= fetched);
-    setFlag(Z, r_Y == fetched);
-    setFlag(N, (r_Y - fetched) & (1 << 7));
+    r_status[C] = r_Y >= fetched;
+    r_status[Z] = r_Y == fetched;
+    r_status[N] = (r_Y - fetched) & (1 << 7);
     return 0;
 }
 
@@ -303,8 +305,8 @@ uint8_t MOS6502::INC() {
     fetched++;
     bus.write(addr, fetched);
 
-    setFlag(Z, fetched == 0x00);
-    setFlag(N, fetched & (1 << 7));
+    r_status[Z] = fetched == 0x00;
+    r_status[N] = fetched & (1 << 7);
     return 0;
 }
 
@@ -316,8 +318,8 @@ uint8_t MOS6502::INC() {
 uint8_t MOS6502::INX() {
     r_X++;
 
-    setFlag(Z, r_X == 0x00);
-    setFlag(N, r_X & (1 << 7));
+    r_status[Z] = r_X == 0x00;
+    r_status[N] = r_X & (1 << 7);
     return 0;
 }
 
@@ -329,8 +331,8 @@ uint8_t MOS6502::INX() {
 uint8_t MOS6502::INY() {
     r_Y++;
 
-    setFlag(Z, r_Y == 0x00);
-    setFlag(N, r_Y & (1 << 7));
+    r_status[Z] = r_Y == 0x00;
+    r_status[N] = r_Y & (1 << 7);
     return 0;
 }
 
@@ -343,8 +345,8 @@ uint8_t MOS6502::DEC() {
     fetched--;
     bus.write(addr, fetched);
 
-    setFlag(Z, fetched == 0x00);
-    setFlag(N, fetched & (1 << 7));
+    r_status[Z] = fetched == 0x00;
+    r_status[N] = fetched & (1 << 7);
     return 0;
 }
 
@@ -356,8 +358,8 @@ uint8_t MOS6502::DEC() {
 uint8_t MOS6502::DEX() {
     r_X--;
 
-    setFlag(Z, r_X == 0x00);
-    setFlag(N, r_X & (1 << 7));
+    r_status[Z] = r_X == 0x00;
+    r_status[N] = r_X & (1 << 7);
     return 0;
 }
 
@@ -369,8 +371,8 @@ uint8_t MOS6502::DEX() {
 uint8_t MOS6502::DEY() {
     r_Y--;
 
-    setFlag(Z, r_Y == 0x00);
-    setFlag(N, r_Y & (1 << 7));
+    r_status[Z] = r_Y == 0x00;
+    r_status[N] = r_Y & (1 << 7);
     return 0;
 }
 
@@ -388,9 +390,9 @@ uint8_t MOS6502::ASL() {
     fetched = static_cast<uint8_t>(fetched << 1);
     bus.write(addr, fetched);
 
-    setFlag(C, oldC);
-    setFlag(Z, fetched == 0x00);
-    setFlag(N, fetched & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = fetched == 0x00;
+    r_status[N] = fetched & (1 << 7);
     return 0;
 }
 
@@ -404,9 +406,9 @@ uint8_t MOS6502::ASA() {
 
     r_A = static_cast<uint8_t>(r_A << 1);
 
-    setFlag(C, oldC);
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -422,9 +424,9 @@ uint8_t MOS6502::LSR() {
     fetched = static_cast<uint8_t>(fetched >> 1);
     bus.write(addr, fetched);
 
-    setFlag(C, oldC);
-    setFlag(Z, fetched == 0x00);
-    setFlag(N, fetched & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = fetched == 0x00;
+    r_status[N] = fetched & (1 << 7);
     return 0;
 }
 
@@ -438,9 +440,9 @@ uint8_t MOS6502::LSA() {
 
     r_A = static_cast<uint8_t>(r_A >> 1);
 
-    setFlag(C, oldC);
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -455,12 +457,12 @@ uint8_t MOS6502::ROL() {
     bool oldC = fetched & (1 << 7);
 
     fetched = static_cast<uint8_t>(fetched << 1);
-    fetched |= getFlag(C);
+    fetched |= r_status[C];
     bus.write(addr, fetched);
 
-    setFlag(C, oldC);
-    setFlag(Z, fetched == 0x00);
-    setFlag(N, fetched & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = fetched == 0x00;
+    r_status[N] = fetched & (1 << 7);
     return 0;
 }
 
@@ -473,11 +475,11 @@ uint8_t MOS6502::ROA() {
     bool oldC = r_A & (1 << 7);
 
     r_A = static_cast<uint8_t>(r_A << 1);
-    r_A |= getFlag(C);
+    r_A |= r_status[C];
 
-    setFlag(C, oldC);
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -492,12 +494,12 @@ uint8_t MOS6502::ROR() {
     bool oldC = fetched & (1 << 0);
 
     fetched = static_cast<uint8_t>(fetched >> 1);
-    fetched |= static_cast<uint8_t>(getFlag(C) << 7);
+    fetched |= static_cast<uint8_t>(r_status[C] << 7);
     bus.write(addr, fetched);
 
-    setFlag(C, oldC);
-    setFlag(Z, fetched == 0x00);
-    setFlag(N, fetched & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = fetched == 0x00;
+    r_status[N] = fetched & (1 << 7);
     return 0;
 }
 
@@ -510,11 +512,11 @@ uint8_t MOS6502::RAA() {
     bool oldC = r_A & (1 << 0);
 
     r_A = static_cast<uint8_t>(r_A >> 1);
-    r_A |= static_cast<uint8_t>(getFlag(C) << 7);
+    r_A |= static_cast<uint8_t>(r_status[C] << 7);
 
-    setFlag(C, oldC);
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -563,7 +565,7 @@ uint8_t MOS6502::RTS() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BCC() {
-    if (!getFlag(C)) {
+    if (!r_status[C]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -579,7 +581,7 @@ uint8_t MOS6502::BCC() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BCS() {
-    if (getFlag(C)) {
+    if (r_status[C]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -595,7 +597,7 @@ uint8_t MOS6502::BCS() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BNE() {
-    if (!getFlag(Z)) {
+    if (!r_status[Z]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -611,7 +613,7 @@ uint8_t MOS6502::BNE() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BEQ() {
-    if (getFlag(Z)) {
+    if (r_status[Z]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -627,7 +629,7 @@ uint8_t MOS6502::BEQ() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BPL() {
-    if (!getFlag(N)) {
+    if (!r_status[N]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -643,7 +645,7 @@ uint8_t MOS6502::BPL() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BMI() {
-    if (getFlag(N)) {
+    if (r_status[N]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -659,7 +661,7 @@ uint8_t MOS6502::BMI() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BVC() {
-    if (!getFlag(V)) {
+    if (!r_status[V]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -675,7 +677,7 @@ uint8_t MOS6502::BVC() {
  * to cause a branch to a new location.
  */
 uint8_t MOS6502::BVS() {
-    if (getFlag(V)) {
+    if (r_status[V]) {
         uint16_t oldPC = r_PC;
         r_PC = static_cast<uint16_t>(r_PC + static_cast<int8_t>(fetched));
 
@@ -690,7 +692,7 @@ uint8_t MOS6502::BVS() {
  * Set the carry flag to zero.
  */
 uint8_t MOS6502::CLC() {
-    setFlag(C, false);
+    r_status[C] = false;
     return 0;
 }
 
@@ -698,7 +700,7 @@ uint8_t MOS6502::CLC() {
  * Sets the decimal mode flag to zero.
  */
 uint8_t MOS6502::CLD() {
-    setFlag(D, false);
+    r_status[D] = false;
     return 0;
 }
 
@@ -706,7 +708,7 @@ uint8_t MOS6502::CLD() {
  * Clears the interrupt disable flag allowing normal interrupt requests to be serviced.
  */
 uint8_t MOS6502::CLI() {
-    setFlag(I, false);
+    r_status[I] = false;
     return 0;
 }
 
@@ -714,7 +716,7 @@ uint8_t MOS6502::CLI() {
  * Clears the overflow flag.
  */
 uint8_t MOS6502::CLV() {
-    setFlag(V, false);
+    r_status[V] = false;
     return 0;
 }
 
@@ -722,7 +724,7 @@ uint8_t MOS6502::CLV() {
  * Set the carry flag to one.
  */
 uint8_t MOS6502::SEC() {
-    setFlag(C, true);
+    r_status[C] = true;
     return 0;
 }
 
@@ -730,7 +732,7 @@ uint8_t MOS6502::SEC() {
  * Set the decimal mode flag to one.
  */
 uint8_t MOS6502::SED() {
-    setFlag(D, true);
+    r_status[D] = true;
     return 0;
 }
 
@@ -738,7 +740,7 @@ uint8_t MOS6502::SED() {
  * Set the interrupt disable flag to one.
  */
 uint8_t MOS6502::SEI() {
-    setFlag(I, true);
+    r_status[I] = true;
     return 0;
 }
 
@@ -748,7 +750,7 @@ uint8_t MOS6502::SEI() {
  * is loaded into the PC and the break flag in the status set to one.
  */
 uint8_t MOS6502::BRK() {
-    setFlag(I, false);
+    r_status[I] = false;
     irq();
     return 0;
 }
@@ -767,8 +769,8 @@ uint8_t MOS6502::NOP() {
  */
 uint8_t MOS6502::RTI() {
     r_status = bus.read(STACK_PAGE + (++r_SP));
-    setFlag(B, false);
-    setFlag(U, false);
+    r_status[B] = false;
+    r_status[U] = false;
 
     r_PC = static_cast<uint16_t>(bus.read(STACK_PAGE + (++r_SP)));
     r_PC |= static_cast<uint16_t>(bus.read(STACK_PAGE + (++r_SP)) << 8);
@@ -782,8 +784,8 @@ uint8_t MOS6502::LAX() {
     r_A = fetched;
     r_X = fetched;
 
-    setFlag(Z, fetched == 0x00);
-    setFlag(N, fetched & (1 << 7));
+    r_status[Z] = fetched == 0x00;
+    r_status[N] = fetched & (1 << 7);
     return 1;
 }
 
@@ -808,9 +810,9 @@ uint8_t MOS6502::DCP() {
     fetched--;
     bus.write(addr, fetched);
 
-    setFlag(C, r_A >= fetched);
-    setFlag(Z, r_A == fetched);
-    setFlag(N, (r_A - fetched) & (1 << 7));
+    r_status[C] = r_A >= fetched;
+    r_status[Z] = r_A == fetched;
+    r_status[N] = (r_A - fetched) & (1 << 7);
     return 0;
 }
 
@@ -844,9 +846,9 @@ uint8_t MOS6502::SLO() {
     bus.write(addr, fetched);
     r_A |= fetched;
 
-    setFlag(C, oldC);
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -862,13 +864,13 @@ uint8_t MOS6502::RLA() {
     bool oldC = fetched & (1 << 7);
 
     fetched = static_cast<uint8_t>(fetched << 1);
-    fetched |= getFlag(C);
+    fetched |= r_status[C];
     bus.write(addr, fetched);
     r_A &= fetched;
 
-    setFlag(C, oldC);
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -887,9 +889,9 @@ uint8_t MOS6502::SRE() {
     bus.write(addr, fetched);
     r_A ^= fetched;
 
-    setFlag(C, oldC);
-    setFlag(Z, r_A == 0x00);
-    setFlag(N, r_A & (1 << 7));
+    r_status[C] = oldC;
+    r_status[Z] = r_A == 0x00;
+    r_status[N] = r_A & (1 << 7);
     return 0;
 }
 
@@ -904,17 +906,17 @@ uint8_t MOS6502::RRA() {
     bool oldC = fetched & (1 << 0);
 
     fetched = static_cast<uint8_t>(fetched >> 1);
-    fetched |= static_cast<uint8_t>((getFlag(C) << 7));
+    fetched |= static_cast<uint8_t>((r_status[C] << 7));
     bus.write(addr, fetched);
 
     auto sum = static_cast<uint16_t>(r_A + fetched + oldC);
 
     // Overflow happens if sign of r_A and fetched is equal but sign of sum is different.
-    setFlag(V, ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7));  // signed overflow
+    r_status[V] = ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7);  // signed overflow
 
-    setFlag(C, sum > 0xFF);  // unsigned overflow
-    setFlag(Z, static_cast<uint8_t>(sum) == 0x00);
-    setFlag(N, sum & (1 << 7));
+    r_status[C] = sum > 0xFF;  // unsigned overflow
+    r_status[Z] = static_cast<uint8_t>(sum) == 0x00;
+    r_status[N] = sum & (1 << 7);
 
     r_A = static_cast<uint8_t>(sum);
     return 0;

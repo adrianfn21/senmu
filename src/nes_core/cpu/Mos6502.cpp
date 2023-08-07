@@ -54,16 +54,16 @@ void MOS6502::reset() {
 
 void MOS6502::irq() {
     // This interrupt is only processed if Interrupts are enabled
-    if (!getFlag(I)) {
+    if (!r_status[I]) {
         // Pushes the PC to the stack
         bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>((r_PC >> 8) & 0x00FF));
         bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>(r_PC & 0x00FF));
 
         // Pushes the status register to the stack
-        setFlag(B, false);
-        setFlag(U, true);
-        setFlag(I, true);
-        bus.write(STACK_PAGE + (r_SP--), r_status);
+        r_status[B] = false;
+        r_status[U] = true;
+        r_status[I] = true;
+        bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>(r_status.to_ulong()));
 
         // Call to the interrupt handler for IRQ
         constexpr uint16_t irqHandlerAddr = 0xFFFE;
@@ -79,10 +79,10 @@ void MOS6502::nmi() {
     bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>(r_PC & 0x00FF));
 
     // Pushes the status register to the stack
-    setFlag(B, false);
-    setFlag(U, true);
-    setFlag(I, true);
-    bus.write(STACK_PAGE + (r_SP--), r_status);
+    r_status[B] = false;
+    r_status[U] = true;
+    r_status[I] = true;
+    bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>(r_status.to_ulong()));
 
     // Call to the interrupt handler for IRQ
     constexpr uint16_t nmiHandlerAddr = 0xFFFA;
