@@ -55,8 +55,8 @@ TEST_CASE("Run nestest.nes", "[nestest]") {
 
             // Check for errors after each instruction
             // Bytes to check have been selected by trial and error
-            uint8_t err2 = nes.read(0x0003);
-            uint8_t err3 = nes.read(0x0011);
+            std::uint8_t err2 = nes.read(0x0003);
+            std::uint8_t err3 = nes.read(0x0011);
             if (err2 != 0x00) {
                 INFO("Error at instruction " << nes.getInstructions() << " (PC = " << std::hex << nes.getPC() << "), code 0x" << err2 << " (byte 0x02)");
                 REQUIRE(int(err2) == 0x00);

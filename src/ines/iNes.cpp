@@ -13,7 +13,7 @@ iNES::iNES(const std::string& filepath) {
         exit(1);
     }
 
-    std::vector<uint8_t> data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::vector<std::uint8_t> data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
     // Check if file is iNES format
     if (data[0] != 0x4E || data[1] != 0x45 || data[2] != 0x53 || data[3] != 0x1A) {

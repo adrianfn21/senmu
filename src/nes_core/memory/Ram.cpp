@@ -2,15 +2,15 @@
 
 namespace NES {
 
-Ram::Ram(Bus& bus, uint16_t startAddr, uint16_t endAddr) : BusSubscriber(startAddr, endAddr), memory(endAddr - startAddr + 1, 0) {
+Ram::Ram(Bus& bus, std::uint16_t startAddr, std::uint16_t endAddr) : BusSubscriber(startAddr, endAddr), memory(endAddr - startAddr + 1, 0) {
     bus.addDevice(this);
 }
 
-void Ram::writeHandler(uint16_t addr, uint8_t data) {
+void Ram::writeHandler(std::uint16_t addr, std::uint8_t data) {
     memory[addr] = data;
 }
 
-uint8_t Ram::readHandler(uint16_t addr) {
+std::uint8_t Ram::readHandler(std::uint16_t addr) {
     return memory[addr];
 }
 

@@ -25,20 +25,20 @@ class iNES {
     struct {
         size_t prgRomSize;
         size_t chrRomSize;
-        uint8_t flags6;
-        uint8_t flags7;
-        uint8_t flags8;
-        uint8_t flags9;
-        uint8_t flags10;
+        std::uint8_t flags6;
+        std::uint8_t flags7;
+        std::uint8_t flags8;
+        std::uint8_t flags9;
+        std::uint8_t flags10;
 
         size_t playchoiceInstRomSize;
         size_t playchoicePromSize;
     } header;
 
-    std::vector<uint8_t> prgRom;
-    std::vector<uint8_t> chrRom;
-    std::vector<uint8_t> playchoiceInstRom;
-    std::vector<uint8_t> playchoiceProm;
+    std::vector<std::uint8_t> prgRom;
+    std::vector<std::uint8_t> chrRom;
+    std::vector<std::uint8_t> playchoiceInstRom;
+    std::vector<std::uint8_t> playchoiceProm;
     std::string title;
 
   private:

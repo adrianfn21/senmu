@@ -13,16 +13,16 @@ class BusSubscriber {
   public:
     friend class Bus;
 
-    BusSubscriber(uint16_t startAddr, uint16_t endAddr) : startAddr(startAddr), endAddr(endAddr) {}
+    BusSubscriber(std::uint16_t startAddr, std::uint16_t endAddr) : startAddr(startAddr), endAddr(endAddr) {}
 
     virtual ~BusSubscriber() = default;
 
-    virtual void writeHandler(uint16_t addr, uint8_t data) = 0;
-    virtual uint8_t readHandler(uint16_t addr) = 0;
+    virtual void writeHandler(std::uint16_t addr, std::uint8_t data) = 0;
+    virtual std::uint8_t readHandler(std::uint16_t addr) = 0;
 
   private:
-    uint16_t startAddr;
-    uint16_t endAddr;
+    std::uint16_t startAddr;
+    std::uint16_t endAddr;
 };
 
 class Bus {
@@ -32,14 +32,14 @@ class Bus {
 
     void addDevice(BusSubscriber* device);
 
-    void write(uint16_t addr, uint8_t data) const noexcept;
+    void write(std::uint16_t addr, std::uint8_t data) const noexcept;
 
-    [[nodiscard]] uint8_t read(uint16_t addr) const noexcept;
+    [[nodiscard]] std::uint8_t read(std::uint16_t addr) const noexcept;
 
   private:
     std::vector<BusSubscriber*> devices;
 
-    [[nodiscard]] BusSubscriber* findDevice(uint16_t addr) const noexcept;
+    [[nodiscard]] BusSubscriber* findDevice(std::uint16_t addr) const noexcept;
 };
 
 }  // namespace NES

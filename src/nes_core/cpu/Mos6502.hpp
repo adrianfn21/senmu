@@ -51,17 +51,17 @@ class MOS6502 {
     /**
      * @brief Returns the opcode of the current instruction.
      */
-    [[nodiscard]] constexpr uint8_t getOpcode() const { return opcode; }
+    [[nodiscard]] constexpr std::uint8_t getOpcode() const { return opcode; }
 
     /**
      * @brief Returns the current value of the program counter.
      */
-    [[nodiscard]] constexpr uint16_t getPC() const { return r_PC; }
+    [[nodiscard]] constexpr std::uint16_t getPC() const { return r_PC; }
 
     /**
      * @brief Sets the value of the program counter.
      */
-    constexpr void setPC(uint16_t pc) { r_PC = pc; }
+    constexpr void setPC(std::uint16_t pc) { r_PC = pc; }
 
     /**
      * @brief Returns the number of cycles executed.
@@ -103,24 +103,24 @@ class MOS6502 {
     Bus& bus;
 
     /* Helper variables to simulation */
-    uint8_t cycles;   // Remaining cycles for the current instruction
-    uint8_t opcode;   // Current opcode
-    uint8_t fetched;  // Fetched data
-    uint16_t addr;    // Address the current instruction points to
+    std::uint8_t cycles;   // Remaining cycles for the current instruction
+    std::uint8_t opcode;   // Current opcode
+    std::uint8_t fetched;  // Fetched data
+    std::uint16_t addr;    // Address the current instruction points to
 
     // Hardcoded address/page where the stack starts
-    static constexpr uint16_t STACK_PAGE = 0x0100;
+    static constexpr std::uint16_t STACK_PAGE = 0x0100;
 
     /* Statistics */
     uint64_t cyclesCounter{};        // Number of cycles executed
     uint64_t instructionsCounter{};  // Number of instructions executed
 
     /* CPU Registers */
-    uint16_t r_PC{};  // Program Counter
-    uint8_t r_SP{};   // Stack Pointer
-    uint8_t r_A{};    // Accumulator
-    uint8_t r_X{};    // Index Register X
-    uint8_t r_Y{};    // Index Register Y
+    std::uint16_t r_PC{};  // Program Counter
+    std::uint8_t r_SP{};   // Stack Pointer
+    std::uint8_t r_A{};    // Accumulator
+    std::uint8_t r_X{};    // Index Register X
+    std::uint8_t r_Y{};    // Index Register Y
 
     enum StatusFlags {
         C = 0,  // Carry Flag
@@ -147,99 +147,99 @@ class MOS6502 {
      */
 
     // Load/Store Instructions
-    uint8_t LDA();  // Load Accumulator
-    uint8_t LDX();  // Load Index X
-    uint8_t LDY();  // Load Index Y
-    uint8_t STA();  // Store Accumulator
-    uint8_t STX();  // Store Index X
-    uint8_t STY();  // Store Index Y
+    std::uint8_t LDA();  // Load Accumulator
+    std::uint8_t LDX();  // Load Index X
+    std::uint8_t LDY();  // Load Index Y
+    std::uint8_t STA();  // Store Accumulator
+    std::uint8_t STX();  // Store Index X
+    std::uint8_t STY();  // Store Index Y
 
     // Register Transfers Instructions
-    uint8_t TAX();  // Transfer Accumulator to Index X
-    uint8_t TAY();  // Transfer Accumulator to Index Y
-    uint8_t TXA();  // Transfer Index X to Accumulator
-    uint8_t TYA();  // Transfer Index Y to Accumulator
+    std::uint8_t TAX();  // Transfer Accumulator to Index X
+    std::uint8_t TAY();  // Transfer Accumulator to Index Y
+    std::uint8_t TXA();  // Transfer Index X to Accumulator
+    std::uint8_t TYA();  // Transfer Index Y to Accumulator
 
     // Stack Operations Instructions
-    uint8_t TSX();  // Transfer Stack Pointer to Index X
-    uint8_t TXS();  // Transfer Index X to Stack Pointer
-    uint8_t PHA();  // Push Accumulator
-    uint8_t PHP();  // Push Processor Status
-    uint8_t PLA();  // Pull Accumulator
-    uint8_t PLP();  // Pull Processor Status
+    std::uint8_t TSX();  // Transfer Stack Pointer to Index X
+    std::uint8_t TXS();  // Transfer Index X to Stack Pointer
+    std::uint8_t PHA();  // Push Accumulator
+    std::uint8_t PHP();  // Push Processor Status
+    std::uint8_t PLA();  // Pull Accumulator
+    std::uint8_t PLP();  // Pull Processor Status
 
     // Logical Instructions
-    uint8_t AND();  // Logical AND
-    uint8_t EOR();  // Exclusive OR
-    uint8_t ORA();  // Logical Inclusive OR
-    uint8_t BIT();  // Bit Test
+    std::uint8_t AND();  // Logical AND
+    std::uint8_t EOR();  // Exclusive OR
+    std::uint8_t ORA();  // Logical Inclusive OR
+    std::uint8_t BIT();  // Bit Test
 
     // Arithmetic Instructions
-    uint8_t ADC();  // Add with Carry
-    uint8_t SBC();  // Subtract with Carry
-    uint8_t CMP();  // Compare Accumulator
-    uint8_t CPX();  // Compare Index X
-    uint8_t CPY();  // Compare Index Y
+    std::uint8_t ADC();  // Add with Carry
+    std::uint8_t SBC();  // Subtract with Carry
+    std::uint8_t CMP();  // Compare Accumulator
+    std::uint8_t CPX();  // Compare Index X
+    std::uint8_t CPY();  // Compare Index Y
 
     // Increment/Decrement Instructions
-    uint8_t INC();  // Increment Memory
-    uint8_t INX();  // Increment Index X
-    uint8_t INY();  // Increment Index Y
-    uint8_t DEC();  // Decrement Memory
-    uint8_t DEX();  // Decrement Index X
-    uint8_t DEY();  // Decrement Index Y
+    std::uint8_t INC();  // Increment Memory
+    std::uint8_t INX();  // Increment Index X
+    std::uint8_t INY();  // Increment Index Y
+    std::uint8_t DEC();  // Decrement Memory
+    std::uint8_t DEX();  // Decrement Index X
+    std::uint8_t DEY();  // Decrement Index Y
 
     // Shift Instructions
-    uint8_t ASL();  // Arithmetic Shift Left (Memory)
-    uint8_t ASA();  // Arithmetic Shift Left (Accumulator)
-    uint8_t LSR();  // Logical Shift Right (Memory)
-    uint8_t LSA();  // Logical Shift Right (Accumulator)
-    uint8_t ROL();  // Rotate Left (Memory)
-    uint8_t ROA();  // Rotate Left (Accumulator)
-    uint8_t ROR();  // Rotate Right (Memory)
-    uint8_t RAA();  // Rotate Right (Accumulator)
+    std::uint8_t ASL();  // Arithmetic Shift Left (Memory)
+    std::uint8_t ASA();  // Arithmetic Shift Left (Accumulator)
+    std::uint8_t LSR();  // Logical Shift Right (Memory)
+    std::uint8_t LSA();  // Logical Shift Right (Accumulator)
+    std::uint8_t ROL();  // Rotate Left (Memory)
+    std::uint8_t ROA();  // Rotate Left (Accumulator)
+    std::uint8_t ROR();  // Rotate Right (Memory)
+    std::uint8_t RAA();  // Rotate Right (Accumulator)
 
     // Jump/Calls Instructions
-    uint8_t JMP();  // Jump
-    uint8_t JSR();  // Jump to Subroutine
-    uint8_t RTS();  // Return from Subroutine
+    std::uint8_t JMP();  // Jump
+    std::uint8_t JSR();  // Jump to Subroutine
+    std::uint8_t RTS();  // Return from Subroutine
 
     // Branch Instructions
-    uint8_t BCC();  // Branch if Carry Clear
-    uint8_t BCS();  // Branch if Carry Set
-    uint8_t BNE();  // Branch if Not Equal
-    uint8_t BEQ();  // Branch if Equal
-    uint8_t BPL();  // Branch if Positive
-    uint8_t BMI();  // Branch if Minus
-    uint8_t BVC();  // Branch if Overflow Clear
-    uint8_t BVS();  // Branch if Overflow Set
+    std::uint8_t BCC();  // Branch if Carry Clear
+    std::uint8_t BCS();  // Branch if Carry Set
+    std::uint8_t BNE();  // Branch if Not Equal
+    std::uint8_t BEQ();  // Branch if Equal
+    std::uint8_t BPL();  // Branch if Positive
+    std::uint8_t BMI();  // Branch if Minus
+    std::uint8_t BVC();  // Branch if Overflow Clear
+    std::uint8_t BVS();  // Branch if Overflow Set
 
     // Status Flag Instructions
-    uint8_t CLC();  // Clear Carry Flag
-    uint8_t CLD();  // Clear Decimal Mode
-    uint8_t CLI();  // Clear Interrupt Disable
-    uint8_t CLV();  // Clear Overflow Flag
-    uint8_t SEC();  // Set Carry Flag
-    uint8_t SED();  // Set Decimal Flag
-    uint8_t SEI();  // Set Interrupt Disable
+    std::uint8_t CLC();  // Clear Carry Flag
+    std::uint8_t CLD();  // Clear Decimal Mode
+    std::uint8_t CLI();  // Clear Interrupt Disable
+    std::uint8_t CLV();  // Clear Overflow Flag
+    std::uint8_t SEC();  // Set Carry Flag
+    std::uint8_t SED();  // Set Decimal Flag
+    std::uint8_t SEI();  // Set Interrupt Disable
 
     // System Functions
-    uint8_t BRK();  // Force Interrupt
-    uint8_t NOP();  // No Operation
-    uint8_t RTI();  // Return from Interrupt
+    std::uint8_t BRK();  // Force Interrupt
+    std::uint8_t NOP();  // No Operation
+    std::uint8_t RTI();  // Return from Interrupt
 
     // Unofficial Instructions
-    uint8_t LAX();  // Load Accumulator and Index X
-    uint8_t SAX();  // Store Accumulator and Index X
-    uint8_t DCP();  // Decrement Memory and Compare
-    uint8_t ISC();  // Increment Memory and Subtract with Carry
-    uint8_t SLO();  // Shift Left Memory and OR with Accumulator
-    uint8_t RLA();  // Rotate Left Memory and AND with Accumulator
-    uint8_t SRE();  // Shift Right Memory and XOR with Accumulator
-    uint8_t RRA();  // Rotate Right Memory and Add with Carry
+    std::uint8_t LAX();  // Load Accumulator and Index X
+    std::uint8_t SAX();  // Store Accumulator and Index X
+    std::uint8_t DCP();  // Decrement Memory and Compare
+    std::uint8_t ISC();  // Increment Memory and Subtract with Carry
+    std::uint8_t SLO();  // Shift Left Memory and OR with Accumulator
+    std::uint8_t RLA();  // Rotate Left Memory and AND with Accumulator
+    std::uint8_t SRE();  // Shift Right Memory and XOR with Accumulator
+    std::uint8_t RRA();  // Rotate Right Memory and Add with Carry
 
     // Not defined behavior
-    uint8_t XXX();  // Illegal Opcode
+    std::uint8_t XXX();  // Illegal Opcode
 
     /* Addressing Modes supported by the 6502 CPU
      * Reference: https://www.nesdev.org/obelisk-6502-guide/addressing.html
@@ -253,19 +253,19 @@ class MOS6502 {
      * These addressing modes return the number of extra cycles that they can potentially require.
      * They will only affect to the instructions that does not have a fixed number of cycles.
      */
-    uint8_t IMP();                   // Implicit
-    [[maybe_unused]] uint8_t ACC();  // Accumulator (unused, behaviour adapted to AAL and RAL instructions)
-    uint8_t IMM();                   // Immediate
-    uint8_t ZP0();                   // Zero Page
-    uint8_t ZPX();                   // X-Indexed Zero Page
-    uint8_t ZPY();                   // Y-Indexed Zero Page
-    uint8_t REL();                   // Relative (only used by branch instructions)
-    uint8_t ABS();                   // Absolute
-    uint8_t ABX();                   // X-Indexed Absolute
-    uint8_t ABY();                   // Y-Indexed Absolute
-    uint8_t IND();                   // Absolute Indirect (only used by JMP)
-    uint8_t IZX();                   // X-Indexed Zero Page Indirect
-    uint8_t IZY();                   // Zero Page Indirect Y-Indexed
+    std::uint8_t IMP();                   // Implicit
+    [[maybe_unused]] std::uint8_t ACC();  // Accumulator (unused, behaviour adapted to AAL and RAL instructions)
+    std::uint8_t IMM();                   // Immediate
+    std::uint8_t ZP0();                   // Zero Page
+    std::uint8_t ZPX();                   // X-Indexed Zero Page
+    std::uint8_t ZPY();                   // Y-Indexed Zero Page
+    std::uint8_t REL();                   // Relative (only used by branch instructions)
+    std::uint8_t ABS();                   // Absolute
+    std::uint8_t ABX();                   // X-Indexed Absolute
+    std::uint8_t ABY();                   // Y-Indexed Absolute
+    std::uint8_t IND();                   // Absolute Indirect (only used by JMP)
+    std::uint8_t IZX();                   // X-Indexed Zero Page Indirect
+    std::uint8_t IZY();                   // Zero Page Indirect Y-Indexed
 
     /* Instruction Set OpCode Matrix
      * Reference table (page 10): http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf
@@ -273,10 +273,10 @@ class MOS6502 {
      */
     struct OpcodeInst {
         std::string name;
-        uint8_t opcode;
-        uint8_t (MOS6502::*instruction)() = nullptr;
-        uint8_t (MOS6502::*addrMode)() = nullptr;
-        uint8_t cycles;
+        std::uint8_t opcode;
+        std::uint8_t (MOS6502::*instruction)() = nullptr;
+        std::uint8_t (MOS6502::*addrMode)() = nullptr;
+        std::uint8_t cycles;
     };
 
     const std::array<OpcodeInst, 256> opcodeLUT{{
