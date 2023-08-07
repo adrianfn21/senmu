@@ -3,7 +3,6 @@
 namespace NES {
 
 MOS6502::MOS6502(Bus& bus) : bus(bus), cycles(0), opcode(0xFF), fetched(0), addr(0) {
-    // TODO: how to initialize this?
     reset();
     cycles = 0;
 }
@@ -38,9 +37,6 @@ void MOS6502::step() {
 }
 
 void MOS6502::reset() {
-    // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
-    // The D (decimal mode) flag is not defined after RESET.
-
     r_status = 0x00;
     r_A = 0x00;
     r_X = 0x00;
@@ -51,20 +47,17 @@ void MOS6502::reset() {
 
     // Call to RESET interrupt handler
     const uint16_t resetHandlerAddr = 0xFFFC;
-    r_PC = (bus.read(resetHandlerAddr + 1) << 8) | bus.read(resetHandlerAddr);
+    r_PC = static_cast<uint16_t>((bus.read(resetHandlerAddr + 1) << 8) | bus.read(resetHandlerAddr));
 
     cycles = 7;
 }
 
 void MOS6502::irq() {
-    // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
-    // The D (decimal mode) flag is not cleared by interrupts.
-
     // This interrupt is only processed if Interrupts are enabled
     if (!getFlag(I)) {
         // Pushes the PC to the stack
-        bus.write(STACK_PAGE + (r_SP--), (r_PC >> 8) & 0x00FF);
-        bus.write(STACK_PAGE + (r_SP--), r_PC & 0x00FF);
+        bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>((r_PC >> 8) & 0x00FF));
+        bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>(r_PC & 0x00FF));
 
         // Pushes the status register to the stack
         setFlag(B, false);
@@ -74,19 +67,16 @@ void MOS6502::irq() {
 
         // Call to the interrupt handler for IRQ
         constexpr uint16_t irqHandlerAddr = 0xFFFE;
-        r_PC = (bus.read(irqHandlerAddr + 1) << 8) | bus.read(irqHandlerAddr);
+        r_PC = static_cast<uint16_t>((bus.read(irqHandlerAddr + 1) << 8) | bus.read(irqHandlerAddr));
 
         cycles = 7;
     }
 }
 
 void MOS6502::nmi() {
-    // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
-    // The D (decimal mode) flag is not cleared by interrupts.
-
     // Pushes the PC to the stack
-    bus.write(STACK_PAGE + (r_SP--), (r_PC >> 8) & 0x00FF);
-    bus.write(STACK_PAGE + (r_SP--), r_PC & 0x00FF);
+    bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>((r_PC >> 8) & 0x00FF));
+    bus.write(STACK_PAGE + (r_SP--), static_cast<uint8_t>(r_PC & 0x00FF));
 
     // Pushes the status register to the stack
     setFlag(B, false);
@@ -96,7 +86,7 @@ void MOS6502::nmi() {
 
     // Call to the interrupt handler for IRQ
     constexpr uint16_t nmiHandlerAddr = 0xFFFA;
-    r_PC = (bus.read(nmiHandlerAddr + 1) << 8) | bus.read(nmiHandlerAddr);
+    r_PC = static_cast<uint16_t>((bus.read(nmiHandlerAddr + 1) << 8) | bus.read(nmiHandlerAddr));
 
     cycles = 8;
 }

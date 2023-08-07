@@ -111,15 +111,15 @@ class MOS6502 {
     static constexpr uint16_t STACK_PAGE = 0x0100;
 
     /* Statistics */
-    uint64_t cyclesCounter;        // Number of cycles executed
-    uint64_t instructionsCounter;  // Number of instructions executed
+    uint64_t cyclesCounter{};        // Number of cycles executed
+    uint64_t instructionsCounter{};  // Number of instructions executed
 
     /* CPU Registers */
-    uint16_t r_PC;  // Program Counter
-    uint8_t r_SP;   // Stack Pointer
-    uint8_t r_A;    // Accumulator
-    uint8_t r_X;    // Index Register X
-    uint8_t r_Y;    // Index Register Y
+    uint16_t r_PC{};  // Program Counter
+    uint8_t r_SP{};   // Stack Pointer
+    uint8_t r_A{};    // Accumulator
+    uint8_t r_X{};    // Index Register X
+    uint8_t r_Y{};    // Index Register Y
 
     enum StatusFlags {
         C = (1 << 0),  // Carry Flag
@@ -132,16 +132,7 @@ class MOS6502 {
         N = (1 << 7),  // Negative Flag
     };
 
-    uint8_t r_status;  // Status Register
-
-    constexpr void setFlag(StatusFlags flag, bool value) {
-        if (value)
-            r_status |= flag;
-        else
-            r_status &= ~flag;
-    }
-
-    constexpr bool getFlag(StatusFlags flag) const { return r_status & flag; }
+    uint8_t r_status{};  // Status Register
 
     /* Instructions supported by the 6502 CPU
      * Reference: https://www.nesdev.org/obelisk-6502-guide/instructions.html
@@ -560,6 +551,14 @@ class MOS6502 {
         {"INC", 0xFE, &MOS6502::INC, &MOS6502::ABX, 7},  //
         {"ISC", 0xFF, &MOS6502::ISC, &MOS6502::ABX, 7},  // Unofficial
     }};
+
+    /* Helper functinos for flags manipulation */
+    constexpr void setFlag(StatusFlags flag, bool value) {
+        r_status = value ? (r_status | static_cast<uint8_t>(flag))  //
+                         : (r_status & ~static_cast<uint8_t>(flag));
+    }
+
+    [[nodiscard]] constexpr bool getFlag(StatusFlags flag) const { return r_status & static_cast<uint8_t>(flag); }
 };
 
 }  // namespace NES

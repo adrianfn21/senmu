@@ -13,8 +13,8 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif ()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -march=native -mtune=native")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Wconversion -Werror -march=native -mtune=native")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address,undefined -fno-omit-frame-pointer")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wno-unused -ffast-math")
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
@@ -24,8 +24,7 @@ else (CMAKE_BUILD_TYPE MATCHES Release)
 endif ()
 
 #===================== FINDING LIBRARIES ======================#
-find_package(argparse CONFIG REQUIRED)
-find_package(Catch2 CONFIG REQUIRED)
+find_package(catch2 CONFIG REQUIRED)
 
 #====================== PROJECT FOLDERS =======================#
 set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/src")

@@ -80,12 +80,8 @@ uint8_t MOS6502::ZPY() {
  * must be with -126 to +129 bytes of the branch.
  */
 uint8_t MOS6502::REL() {
+    // This value has to be used as a signed value later
     fetched = bus.read(r_PC++);
-
-    // Extend sign-bit from 8 to 16 bits
-    if (fetched & 0x80) {
-        fetched |= 0xFF00;
-    }
 
     // Implementation trick: relative addressing is only used by branch instructions, which can potentially take +1 or +2 extra cycles.
     // Also, in cycle() function we only take the extra cycle if both instruction and addressing mode require it (i.e., cyclesInst & cyclesAddr).
@@ -99,7 +95,7 @@ uint8_t MOS6502::REL() {
 uint8_t MOS6502::ABS() {
     uint16_t low = bus.read(r_PC++);
     uint16_t high = bus.read(r_PC++);
-    addr = (high << 8) | low;
+    addr = static_cast<uint16_t>((high << 8) | low);
     fetched = bus.read(addr);
     return 0;
 }
@@ -112,12 +108,12 @@ uint8_t MOS6502::ABS() {
 uint8_t MOS6502::ABX() {
     uint16_t low = bus.read(r_PC++);
     uint16_t high = bus.read(r_PC++);
-    uint16_t baseAddr = (high << 8) | low;
-    addr = baseAddr + static_cast<uint16_t>(r_X);
+    auto baseAddr = static_cast<uint16_t>((high << 8) | low);
+    addr = baseAddr + r_X;
     fetched = bus.read(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
-    return (baseAddr & 0xFF00) != ((addr)&0xFF00) ? 1 : 0;
+    return (baseAddr & 0xFF00) != (addr & 0xFF00) ? 1 : 0;
 }
 
 /* Y-Indexed Absolute.
@@ -127,12 +123,12 @@ uint8_t MOS6502::ABX() {
 uint8_t MOS6502::ABY() {
     uint16_t low = bus.read(r_PC++);
     uint16_t high = bus.read(r_PC++);
-    uint16_t baseAddr = (high << 8) | low;
-    addr = baseAddr + static_cast<uint16_t>(r_Y);
+    auto baseAddr = static_cast<uint16_t>((high << 8) | low);
+    addr = baseAddr + r_Y;
     fetched = bus.read(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
-    return (baseAddr & 0xFF00) != ((addr)&0xFF00) ? 1 : 0;
+    return (baseAddr & 0xFF00) != (addr & 0xFF00) ? 1 : 0;
 }
 
 /* Absolute Indirect.
@@ -144,16 +140,15 @@ uint8_t MOS6502::ABY() {
 uint8_t MOS6502::IND() {
     uint16_t ptrLow = bus.read(r_PC++);
     uint16_t ptrHigh = bus.read(r_PC++);
-    uint16_t ptr = (ptrHigh << 8) | ptrLow;
+    auto ptr = static_cast<uint16_t>((ptrHigh << 8) | ptrLow);
 
     // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
     // An indirect JMP (xxFF) will fail because the MSB will be fetched from
     // address xx00 instead of page xx+1.
-
     if (ptrLow == 0x00FF) {  // Page boundary hardware bug (add lower byte of the address without carry)
-        addr = (bus.read(ptr & 0xFF00) << 8) | bus.read(ptr);
+        addr = static_cast<uint16_t>((bus.read(ptr & 0xFF00) << 8) | bus.read(ptr));
     } else {  // Normal operation
-        addr = (bus.read(ptr + 1) << 8) | bus.read(ptr + 0);
+        addr = static_cast<uint16_t>((bus.read(ptr + 1) << 8) | bus.read(ptr + 0));
     }
 
     fetched = bus.read(addr);
@@ -167,9 +162,9 @@ uint8_t MOS6502::IND() {
  */
 uint8_t MOS6502::IZX() {
     uint16_t indirect = bus.read(r_PC++);
-    uint16_t low = bus.read((indirect + static_cast<uint16_t>(r_X)) & 0x00FF);
-    uint16_t high = bus.read((indirect + static_cast<uint16_t>(r_X) + 1) & 0x00FF);
-    addr = (high << 8) | low;
+    uint16_t low = bus.read((indirect + r_X) & 0x00FF);
+    uint16_t high = bus.read((indirect + r_X + 1) & 0x00FF);
+    addr = static_cast<uint16_t>((high << 8) | low);
     fetched = bus.read(addr);
     return 0;
 }
@@ -183,8 +178,8 @@ uint8_t MOS6502::IZY() {
     uint16_t indirect = bus.read(r_PC++);
     uint16_t low = bus.read(indirect);
     uint16_t high = bus.read((indirect + 1) & 0x00FF);
-    uint16_t baseAddr = (high << 8) | low;
-    addr = baseAddr + static_cast<uint16_t>(r_Y);
+    auto baseAddr = static_cast<uint16_t>((high << 8) | low);
+    addr = baseAddr + r_Y;
     fetched = bus.read(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address

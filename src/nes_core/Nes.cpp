@@ -47,7 +47,7 @@ void NesSystem::loadRom(const std::vector<uint8_t>& romData) {
         exit(1);
     }
 
-    for (size_t i = 0; i < static_cast<uint16_t>(romData.size()); i++) {
+    for (uint16_t i = 0; i < static_cast<uint16_t>(romData.size()); i++) {
         cpuBus.write(ROM_START + i, romData[i]);
     }
 }

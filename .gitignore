@@ -34,4 +34,5 @@
 # Specific Project Files
 .vscode
 .idea
+build/
 cmake-*
