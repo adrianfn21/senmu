@@ -1,24 +1,29 @@
 #ifndef NES_EMULATOR_RAM_HPP
 #define NES_EMULATOR_RAM_HPP
 
+#include <array>
 #include <cstdint>
-#include <vector>
-#include "comm/Bus.hpp"
 
 namespace NES {
 
-class Ram : private BusSubscriber {
+// TODO add documentation
+
+template <std::size_t size>
+class Ram {
   public:
-    Ram(Bus& bus, std::uint16_t startAddr, std::uint16_t endAddr);
+    Ram() {
+        static_assert(size <= 0xFFFF + 1, "Ram size must be less than 64 KB");
+        static_assert((size & (size - 1)) == 0, "Ram size must be power of 2");
+    };
 
-    ~Ram() override = default;
+    ~Ram() = default;
 
-    void writeHandler(std::uint16_t addr, std::uint8_t data) override;
+    constexpr void write(std::uint16_t addr, std::uint8_t data) noexcept { memory[addr & (size - 1)] = data; }
 
-    [[nodiscard]] std::uint8_t readHandler(std::uint16_t addr) override;
+    [[nodiscard]] constexpr std::uint8_t read(std::uint16_t addr) const noexcept { return memory[addr & (size - 1)]; }
 
   private:
-    std::vector<std::uint8_t> memory;
+    std::array<std::uint8_t, size> memory{};  // Initialized to 0
 };
 
 }  // namespace NES

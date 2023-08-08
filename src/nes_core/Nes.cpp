@@ -3,7 +3,7 @@
 
 namespace NES {
 
-NesSystem::NesSystem() : cpuBus(), ram(cpuBus, 0x0000, 0xFFFF), cpu(cpuBus) {
+NesSystem::NesSystem() : cpu(*this) {
     reset();
 }
 
@@ -48,16 +48,26 @@ void NesSystem::loadRom(const std::vector<std::uint8_t>& romData) {
     }
 
     for (std::uint16_t i = 0; i < static_cast<std::uint16_t>(romData.size()); i++) {
-        cpuBus.write(ROM_START + i, romData[i]);
+        cpuBusWrite(ROM_START + i, romData[i]);
     }
 }
 
-void NesSystem::write(std::uint16_t addr, std::uint8_t data) const noexcept {
-    cpuBus.write(addr, data);
+void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
+    if (addr >= RAM_START && addr <= RAM_END) {
+        ram.write(addr, data);
+    } else if (addr >= ROM_START && addr <= ROM_END) {
+        rom.write(addr, data);
+    }
 }
 
-std::uint8_t NesSystem::read(std::uint16_t addr) const noexcept {
-    return cpuBus.read(addr);
+std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) const noexcept {
+    if (addr >= RAM_START && addr <= RAM_END) {
+        return ram.read(addr);
+    } else if (addr >= ROM_START && addr <= ROM_END) {
+        return rom.read(addr);
+    }
+
+    return 0x00;
 }
 
 }  // namespace NES

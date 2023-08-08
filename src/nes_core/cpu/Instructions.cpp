@@ -1,5 +1,6 @@
 #include <iostream>
-#include "Mos6502.hpp"
+#include "Nes.hpp"
+#include "cpu/Mos6502.hpp"
 
 /**
  * Main module reference: https://www.nesdev.org/obelisk-6502-guide/reference.html
@@ -45,7 +46,7 @@ std::uint8_t MOS6502::LDY() {
  * Stores the contents of the X register into memory.
  */
 std::uint8_t MOS6502::STA() {
-    bus.write(addr, r_A);
+    sys.cpuBusWrite(addr, r_A);
     return 0;
 }
 
@@ -53,7 +54,7 @@ std::uint8_t MOS6502::STA() {
  * Stores the contents of the X register into memory.
  */
 std::uint8_t MOS6502::STX() {
-    bus.write(addr, r_X);
+    sys.cpuBusWrite(addr, r_X);
     return 0;
 }
 
@@ -61,7 +62,7 @@ std::uint8_t MOS6502::STX() {
  * Stores the contents of the Y register into memory.
  */
 std::uint8_t MOS6502::STY() {
-    bus.write(addr, r_Y);
+    sys.cpuBusWrite(addr, r_Y);
     return 0;
 }
 
@@ -132,7 +133,7 @@ std::uint8_t MOS6502::TXS() {
  * Pushes a copy of the accumulator on to the stack.
  */
 std::uint8_t MOS6502::PHA() {
-    bus.write(STACK_PAGE + (r_SP--), r_A);
+    sys.cpuBusWrite(STACK_PAGE + (r_SP--), r_A);
     return 0;
 }
 
@@ -145,7 +146,7 @@ std::uint8_t MOS6502::PHP() {
     std::bitset<8> statusCopy = r_status;
     statusCopy[B] = true;
     statusCopy[U] = true;
-    bus.write(STACK_PAGE + (r_SP--), static_cast<std::uint8_t>(statusCopy.to_ulong()));
+    sys.cpuBusWrite(STACK_PAGE + (r_SP--), static_cast<std::uint8_t>(statusCopy.to_ulong()));
     return 0;
 }
 
@@ -153,7 +154,7 @@ std::uint8_t MOS6502::PHP() {
  * Pulls an 8 bit value from the stack and into the accumulator. The zero and negative flags are set as appropriate.
  */
 std::uint8_t MOS6502::PLA() {
-    r_A = bus.read(STACK_PAGE + (++r_SP));
+    r_A = sys.cpuBusRead(STACK_PAGE + (++r_SP));
 
     r_status[Z] = r_A == 0x00;
     r_status[N] = r_A & (1 << 7);
@@ -164,7 +165,7 @@ std::uint8_t MOS6502::PLA() {
  * Pulls an 8 bit value from the stack and into the processor flags. The flags will take on new states as determined by the value pulled.
  */
 std::uint8_t MOS6502::PLP() {
-    r_status = bus.read(STACK_PAGE + (++r_SP));
+    r_status = sys.cpuBusRead(STACK_PAGE + (++r_SP));
     return 0;
 }
 
@@ -303,7 +304,7 @@ std::uint8_t MOS6502::CPY() {
  */
 std::uint8_t MOS6502::INC() {
     fetched++;
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     r_status[Z] = fetched == 0x00;
     r_status[N] = fetched & (1 << 7);
@@ -343,7 +344,7 @@ std::uint8_t MOS6502::INY() {
  */
 std::uint8_t MOS6502::DEC() {
     fetched--;
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     r_status[Z] = fetched == 0x00;
     r_status[N] = fetched & (1 << 7);
@@ -388,7 +389,7 @@ std::uint8_t MOS6502::ASL() {
     bool oldC = fetched & (1 << 7);
 
     fetched = static_cast<std::uint8_t>(fetched << 1);
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     r_status[C] = oldC;
     r_status[Z] = fetched == 0x00;
@@ -422,7 +423,7 @@ std::uint8_t MOS6502::LSR() {
     bool oldC = fetched & (1 << 0);
 
     fetched = static_cast<std::uint8_t>(fetched >> 1);
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     r_status[C] = oldC;
     r_status[Z] = fetched == 0x00;
@@ -458,7 +459,7 @@ std::uint8_t MOS6502::ROL() {
 
     fetched = static_cast<std::uint8_t>(fetched << 1);
     fetched |= r_status[C];
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     r_status[C] = oldC;
     r_status[Z] = fetched == 0x00;
@@ -495,7 +496,7 @@ std::uint8_t MOS6502::ROR() {
 
     fetched = static_cast<std::uint8_t>(fetched >> 1);
     fetched |= static_cast<std::uint8_t>(r_status[C] << 7);
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     r_status[C] = oldC;
     r_status[Z] = fetched == 0x00;
@@ -539,8 +540,8 @@ std::uint8_t MOS6502::JSR() {
     // Return address pushed on the stack by JSR is one less than actual next
     // instruction.  RTS increments PC after popping.  RTI doesn't.
     std::uint16_t ret = r_PC - 1;
-    bus.write(STACK_PAGE + (r_SP--), static_cast<std::uint8_t>((ret >> 8) & 0x00FF));
-    bus.write(STACK_PAGE + (r_SP--), static_cast<std::uint8_t>(ret & 0x00FF));
+    sys.cpuBusWrite(STACK_PAGE + (r_SP--), static_cast<std::uint8_t>((ret >> 8) & 0x00FF));
+    sys.cpuBusWrite(STACK_PAGE + (r_SP--), static_cast<std::uint8_t>(ret & 0x00FF));
 
     r_PC = addr;
     return 0;
@@ -554,8 +555,8 @@ std::uint8_t MOS6502::RTS() {
     // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
     // Return address pushed on the stack by JSR is one less than actual next
     // instruction.  RTS increments PC after popping.  RTI doesn't.
-    r_PC = static_cast<std::uint16_t>(bus.read(STACK_PAGE + (++r_SP)));
-    r_PC |= static_cast<std::uint16_t>(bus.read(STACK_PAGE + (++r_SP)) << 8);
+    r_PC = static_cast<std::uint16_t>(sys.cpuBusRead(STACK_PAGE + (++r_SP)));
+    r_PC |= static_cast<std::uint16_t>(sys.cpuBusRead(STACK_PAGE + (++r_SP)) << 8);
     r_PC++;
     return 0;
 }
@@ -768,12 +769,12 @@ std::uint8_t MOS6502::NOP() {
  * It pulls the processor flags from the stack followed by the program counter.
  */
 std::uint8_t MOS6502::RTI() {
-    r_status = bus.read(STACK_PAGE + (++r_SP));
+    r_status = sys.cpuBusRead(STACK_PAGE + (++r_SP));
     r_status[B] = false;
     r_status[U] = false;
 
-    r_PC = static_cast<std::uint16_t>(bus.read(STACK_PAGE + (++r_SP)));
-    r_PC |= static_cast<std::uint16_t>(bus.read(STACK_PAGE + (++r_SP)) << 8);
+    r_PC = static_cast<std::uint16_t>(sys.cpuBusRead(STACK_PAGE + (++r_SP)));
+    r_PC |= static_cast<std::uint16_t>(sys.cpuBusRead(STACK_PAGE + (++r_SP)) << 8);
     return 0;
 }
 
@@ -796,7 +797,7 @@ std::uint8_t MOS6502::LAX() {
  * Operation: M <- A & X
  */
 std::uint8_t MOS6502::SAX() {
-    bus.write(addr, r_A & r_X);
+    sys.cpuBusWrite(addr, r_A & r_X);
     return 0;
 }
 
@@ -808,7 +809,7 @@ std::uint8_t MOS6502::SAX() {
  */
 std::uint8_t MOS6502::DCP() {
     fetched--;
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     r_status[C] = r_A >= fetched;
     r_status[Z] = r_A == fetched;
@@ -824,7 +825,7 @@ std::uint8_t MOS6502::DCP() {
  */
 std::uint8_t MOS6502::ISC() {
     fetched++;
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     // ISC does not introduce extra cycles
     SBC();
@@ -843,7 +844,7 @@ std::uint8_t MOS6502::SLO() {
     bool oldC = fetched & (1 << 7);
 
     fetched = static_cast<std::uint8_t>(fetched << 1);
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
     r_A |= fetched;
 
     r_status[C] = oldC;
@@ -865,7 +866,7 @@ std::uint8_t MOS6502::RLA() {
 
     fetched = static_cast<std::uint8_t>(fetched << 1);
     fetched |= r_status[C];
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
     r_A &= fetched;
 
     r_status[C] = oldC;
@@ -886,7 +887,7 @@ std::uint8_t MOS6502::SRE() {
     bool oldC = fetched & (1 << 0);
 
     fetched = static_cast<std::uint8_t>(fetched >> 1);
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
     r_A ^= fetched;
 
     r_status[C] = oldC;
@@ -907,7 +908,7 @@ std::uint8_t MOS6502::RRA() {
 
     fetched = static_cast<std::uint8_t>(fetched >> 1);
     fetched |= static_cast<std::uint8_t>((r_status[C] << 7));
-    bus.write(addr, fetched);
+    sys.cpuBusWrite(addr, fetched);
 
     auto sum = static_cast<std::uint16_t>(r_A + fetched + oldC);
 

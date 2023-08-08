@@ -18,7 +18,7 @@ namespace iNES {
 
 class iNES {
   public:
-    iNES(const std::string& filepath);
+    explicit iNES(const std::string& filepath);
     ~iNES() = default;
 
     /* iNES format fields */
@@ -33,7 +33,7 @@ class iNES {
 
         size_t playchoiceInstRomSize;
         size_t playchoicePromSize;
-    } header;
+    } header{};
 
     std::vector<std::uint8_t> prgRom;
     std::vector<std::uint8_t> chrRom;

@@ -2,7 +2,7 @@
 #define NES_EMULATOR_NES_HPP
 
 #include <cstdint>
-#include "comm/Bus.hpp"
+#include <vector>
 #include "cpu/Mos6502.hpp"
 #include "memory/Ram.hpp"
 
@@ -30,13 +30,13 @@ class NesSystem {
     [[nodiscard]] uint64_t getInstructions() const noexcept;
 
   public:
-    void write(std::uint16_t addr, std::uint8_t data) const noexcept;
-    [[nodiscard]] std::uint8_t read(std::uint16_t addr) const noexcept;
+    void cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept;
+    [[nodiscard]] std::uint8_t cpuBusRead(std::uint16_t addr) const noexcept;
 
   private:
-    NES::Bus cpuBus;
-    NES::Ram ram;
-    NES::MOS6502 cpu;
+    Ram<2 * 1024> ram;   // 2 KB
+    Ram<64 * 1024> rom;  // 64 KB, TODO change later
+    MOS6502 cpu;
 
     // Constants
     static constexpr std::uint16_t RAM_SIZE = 0x0800;

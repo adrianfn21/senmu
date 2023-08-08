@@ -1,4 +1,5 @@
-#include "Mos6502.hpp"
+#include "Nes.hpp"
+#include "cpu/Mos6502.hpp"
 
 /**
  * Main module reference: https://www.nesdev.org/obelisk-6502-guide/addressing.html
@@ -31,7 +32,7 @@ std::uint8_t MOS6502::ACC() {
  * It is indicated by a '#' symbol followed by a numeric expression.
  */
 std::uint8_t MOS6502::IMM() {
-    fetched = bus.read(r_PC++);
+    fetched = sys.cpuBusRead(r_PC++);
     return 0;
 }
 
@@ -42,8 +43,8 @@ std::uint8_t MOS6502::IMM() {
  * and one less memory fetch during execution (important for speed).
  */
 std::uint8_t MOS6502::ZP0() {
-    addr = bus.read(r_PC++);
-    fetched = bus.read(addr);
+    addr = sys.cpuBusRead(r_PC++);
+    fetched = sys.cpuBusRead(addr);
     return 0;
 }
 
@@ -57,8 +58,8 @@ std::uint8_t MOS6502::ZP0() {
  * If we repeat the last example but with $FF in the X register then the accumulator will be loaded from $007F (e.g. $80 + $FF => $7F) and not $017F.
  */
 std::uint8_t MOS6502::ZPX() {
-    addr = static_cast<std::uint8_t>(bus.read(r_PC++) + r_X);  // Yes, it does not handle overflow
-    fetched = bus.read(addr);
+    addr = static_cast<std::uint8_t>(sys.cpuBusRead(r_PC++) + r_X);  // Yes, it does not handle overflow
+    fetched = sys.cpuBusRead(addr);
     return 0;
 }
 
@@ -68,8 +69,8 @@ std::uint8_t MOS6502::ZPX() {
  * This mode can only be used with the LDX and STX instructions.
  */
 std::uint8_t MOS6502::ZPY() {
-    addr = static_cast<std::uint8_t>(bus.read(r_PC++) + r_Y);  // Yes, it does not handle overflow
-    fetched = bus.read(addr);
+    addr = static_cast<std::uint8_t>(sys.cpuBusRead(r_PC++) + r_Y);  // Yes, it does not handle overflow
+    fetched = sys.cpuBusRead(addr);
     return 0;
 }
 
@@ -81,7 +82,7 @@ std::uint8_t MOS6502::ZPY() {
  */
 std::uint8_t MOS6502::REL() {
     // This value has to be used as a signed value later
-    fetched = bus.read(r_PC++);
+    fetched = sys.cpuBusRead(r_PC++);
 
     // Implementation trick: relative addressing is only used by branch instructions, which can potentially take +1 or +2 extra cycles.
     // Also, in cycle() function we only take the extra cycle if both instruction and addressing mode require it (i.e., cyclesInst & cyclesAddr).
@@ -93,10 +94,10 @@ std::uint8_t MOS6502::REL() {
  * Instructions using absolute addressing contain a full 16-bit address to identify the target location.
  */
 std::uint8_t MOS6502::ABS() {
-    std::uint16_t low = bus.read(r_PC++);
-    std::uint16_t high = bus.read(r_PC++);
+    std::uint16_t low = sys.cpuBusRead(r_PC++);
+    std::uint16_t high = sys.cpuBusRead(r_PC++);
     addr = static_cast<std::uint16_t>((high << 8) | low);
-    fetched = bus.read(addr);
+    fetched = sys.cpuBusRead(addr);
     return 0;
 }
 
@@ -106,11 +107,11 @@ std::uint8_t MOS6502::ABS() {
  * For example if X contains $92 then an STA $2000,X instruction will store the accumulator at $2092 (e.g. $2000 + $92).
  */
 std::uint8_t MOS6502::ABX() {
-    std::uint16_t low = bus.read(r_PC++);
-    std::uint16_t high = bus.read(r_PC++);
+    std::uint16_t low = sys.cpuBusRead(r_PC++);
+    std::uint16_t high = sys.cpuBusRead(r_PC++);
     auto baseAddr = static_cast<std::uint16_t>((high << 8) | low);
     addr = baseAddr + r_X;
-    fetched = bus.read(addr);
+    fetched = sys.cpuBusRead(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
     return (baseAddr & 0xFF00) != (addr & 0xFF00) ? 1 : 0;
@@ -121,11 +122,11 @@ std::uint8_t MOS6502::ABX() {
  * added to the 16-bit address from the instruction.
  */
 std::uint8_t MOS6502::ABY() {
-    std::uint16_t low = bus.read(r_PC++);
-    std::uint16_t high = bus.read(r_PC++);
+    std::uint16_t low = sys.cpuBusRead(r_PC++);
+    std::uint16_t high = sys.cpuBusRead(r_PC++);
     auto baseAddr = static_cast<std::uint16_t>((high << 8) | low);
     addr = baseAddr + r_Y;
-    fetched = bus.read(addr);
+    fetched = sys.cpuBusRead(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
     return (baseAddr & 0xFF00) != (addr & 0xFF00) ? 1 : 0;
@@ -138,20 +139,20 @@ std::uint8_t MOS6502::ABY() {
  * execution to occur at $BAFC (e.g. the contents of $0120 and $0121).
  */
 std::uint8_t MOS6502::IND() {
-    std::uint16_t ptrLow = bus.read(r_PC++);
-    std::uint16_t ptrHigh = bus.read(r_PC++);
+    std::uint16_t ptrLow = sys.cpuBusRead(r_PC++);
+    std::uint16_t ptrHigh = sys.cpuBusRead(r_PC++);
     auto ptr = static_cast<std::uint16_t>((ptrHigh << 8) | ptrLow);
 
     // Simulate hardware bug (https://www.nesdev.org/6502bugs.txt)
     // An indirect JMP (xxFF) will fail because the MSB will be fetched from
     // address xx00 instead of page xx+1.
     if (ptrLow == 0x00FF) {  // Page boundary hardware bug (add lower byte of the address without carry)
-        addr = static_cast<std::uint16_t>((bus.read(ptr & 0xFF00) << 8) | bus.read(ptr));
+        addr = static_cast<std::uint16_t>((sys.cpuBusRead(ptr & 0xFF00) << 8) | sys.cpuBusRead(ptr));
     } else {  // Normal operation
-        addr = static_cast<std::uint16_t>((bus.read(ptr + 1) << 8) | bus.read(ptr + 0));
+        addr = static_cast<std::uint16_t>((sys.cpuBusRead(ptr + 1) << 8) | sys.cpuBusRead(ptr + 0));
     }
 
-    fetched = bus.read(addr);
+    fetched = sys.cpuBusRead(addr);
     return 0;
 }
 
@@ -161,11 +162,11 @@ std::uint8_t MOS6502::IND() {
  * byte of the target address.
  */
 std::uint8_t MOS6502::IZX() {
-    std::uint16_t indirect = bus.read(r_PC++);
-    std::uint16_t low = bus.read((indirect + r_X) & 0x00FF);
-    std::uint16_t high = bus.read((indirect + r_X + 1) & 0x00FF);
+    std::uint16_t indirect = sys.cpuBusRead(r_PC++);
+    std::uint16_t low = sys.cpuBusRead((indirect + r_X) & 0x00FF);
+    std::uint16_t high = sys.cpuBusRead((indirect + r_X + 1) & 0x00FF);
     addr = static_cast<std::uint16_t>((high << 8) | low);
-    fetched = bus.read(addr);
+    fetched = sys.cpuBusRead(addr);
     return 0;
 }
 
@@ -175,12 +176,12 @@ std::uint8_t MOS6502::IZX() {
  * address for operation.
  */
 std::uint8_t MOS6502::IZY() {
-    std::uint16_t indirect = bus.read(r_PC++);
-    std::uint16_t low = bus.read(indirect);
-    std::uint16_t high = bus.read((indirect + 1) & 0x00FF);
+    std::uint16_t indirect = sys.cpuBusRead(r_PC++);
+    std::uint16_t low = sys.cpuBusRead(indirect);
+    std::uint16_t high = sys.cpuBusRead((indirect + 1) & 0x00FF);
     auto baseAddr = static_cast<std::uint16_t>((high << 8) | low);
     addr = baseAddr + r_Y;
-    fetched = bus.read(addr);
+    fetched = sys.cpuBusRead(addr);
 
     // If page boundary is crossed, then is needed to add an "oops cycle" in order to ADD the high byte of the address
     return (baseAddr & 0xFF00) != (addr & 0xFF00) ? 1 : 0;

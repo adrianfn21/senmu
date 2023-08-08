@@ -15,8 +15,8 @@ NES::NesSystem emulate(const std::vector<std::uint8_t>& program) {
     nes.loadRom(program);
 
     // Set the RESET vector to the start of the program
-    nes.write(0xFFFC, 0x00);
-    nes.write(0xFFFD, 0x80);
+    nes.cpuBusWrite(0xFFFC, 0x00);
+    nes.cpuBusWrite(0xFFFD, 0x80);
     nes.reset();
 
     nes.step();
@@ -53,7 +53,7 @@ TEST_CASE("Check if 4 is even", "[cpu_basic]") {
                                          0x01, 0x8D, 0x01, 0x00, 0x4C, 0x19, 0x80, 0xA9, 0x02, 0x8D, 0x01, 0x00};
 
     NES::NesSystem nes = emulate(program);
-    REQUIRE(nes.read(0x0001) == 0x02);
+    REQUIRE(nes.cpuBusRead(0x0001) == 0x02);
 }
 
 TEST_CASE("Check if 5 is even", "[cpu_basic]") {
@@ -82,5 +82,5 @@ TEST_CASE("Check if 5 is even", "[cpu_basic]") {
                                          0x01, 0x8D, 0x01, 0x00, 0x4C, 0x19, 0x80, 0xA9, 0x02, 0x8D, 0x01, 0x00};
 
     NES::NesSystem nes = emulate(program);
-    REQUIRE(nes.read(0x0001) == 0x01);
+    REQUIRE(nes.cpuBusRead(0x0001) == 0x01);
 }

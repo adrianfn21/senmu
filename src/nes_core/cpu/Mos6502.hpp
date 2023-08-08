@@ -5,7 +5,6 @@
 #include <bitset>
 #include <cstdint>
 #include <string>
-#include "comm/Bus.hpp"
 
 namespace NES {
 
@@ -24,6 +23,8 @@ namespace NES {
  * lookup table that pairs each instruction with an addressing mode (not all instructions support all addressing modes).
  */
 
+class NesSystem;  // Forward declaration
+
 class MOS6502 {
   public:
     /**
@@ -31,7 +32,7 @@ class MOS6502 {
      *
      * @param bus The bus that connects the CPU with its memory system.
      */
-    explicit MOS6502(Bus& bus);
+    explicit MOS6502(NesSystem& nes);
 
     /**
      * @brief MOS6502 destructor.
@@ -99,8 +100,8 @@ class MOS6502 {
 
   private:
     /* Connections */
-    // The bus that connects the CPU with its memory system
-    Bus& bus;
+    // CPU connected to NES buses to perform reads and writes
+    NesSystem& sys;
 
     /* Helper variables to simulation */
     std::uint8_t cycles;   // Remaining cycles for the current instruction
