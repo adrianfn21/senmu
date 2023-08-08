@@ -1,4 +1,4 @@
-#include "nes_core/Nes.hpp"
+#include "Nes.hpp"
 #include <iostream>
 
 namespace NES {

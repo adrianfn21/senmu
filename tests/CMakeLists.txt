@@ -1,10 +1,12 @@
 #=================== MANUAL VALIDATION ====================#
 add_executable(my_cpu_tests cpu/my_cpu_tests/MyCpuTests.cpp)
+target_include_directories(my_cpu_tests PRIVATE ${INCLUDE_DIR})
 target_link_libraries(my_cpu_tests PRIVATE nes_core)
 target_link_libraries(my_cpu_tests PRIVATE Catch2::Catch2 Catch2::Catch2WithMain)
 
 #======================== NESTEST =========================#
 add_executable(nestest cpu/nestest/NesTest.cpp)
+target_include_directories(nestest PRIVATE ${INCLUDE_DIR})
 target_link_libraries(nestest PRIVATE nes_core)
 target_link_libraries(nestest PRIVATE ines)
 target_link_libraries(nestest PRIVATE Catch2::Catch2 Catch2::Catch2WithMain)

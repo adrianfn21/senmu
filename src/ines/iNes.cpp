@@ -1,4 +1,4 @@
-#include "ines/iNes.hpp"
+#include "iNes.hpp"
 #include <fstream>
 #include <iostream>
 

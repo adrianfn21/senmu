@@ -15,7 +15,7 @@ endif ()
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Wconversion -Werror -march=native -mtune=native")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address,undefined -fno-omit-frame-pointer")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wno-unused -ffast-math")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math")
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-D _DEBUG) # Enable debug mode
@@ -32,6 +32,5 @@ set(INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 set(TESTS_DIR "${CMAKE_SOURCE_DIR}/tests")
 
 #===================== BUILD EXECUTABLES ======================#
-include_directories(${INCLUDE_DIR})
 add_subdirectory(src)
 add_subdirectory(tests)
