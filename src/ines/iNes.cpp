@@ -1,4 +1,4 @@
-#include "iNes.hpp"
+#include "ines/iNes.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -22,8 +22,10 @@ iNES::iNES(const std::string& filepath) {
     }
 
     // Read header
-    header.prgRomSize = data[4] * PRG_ROM_SIZE;
-    header.chrRomSize = data[5] * CHR_ROM_SIZE;
+    header.nPrgRomBanks = data[4];
+    header.nChrRomBanks = data[5];
+    header.prgRomSize = header.nPrgRomBanks * PRG_ROM_SIZE;
+    header.chrRomSize = header.nChrRomBanks * CHR_ROM_SIZE;
     header.flags6 = data[6];
     header.flags7 = data[7];
     header.flags8 = data[8];
@@ -34,23 +36,23 @@ iNES::iNES(const std::string& filepath) {
 
     // Read PRG ROM
     const size_t START_PRG_ROM = HEADER_SIZE;
-    prgRom.resize(header.prgRomSize);
+    prgRom.reserve(header.prgRomSize);
     std::copy(data.begin() + START_PRG_ROM, data.begin() + START_PRG_ROM + header.prgRomSize, std::back_inserter(prgRom));
 
     // Read CHR ROM
     const size_t START_CHR_ROM = HEADER_SIZE + header.prgRomSize;
-    chrRom.resize(header.chrRomSize);
+    chrRom.reserve(header.chrRomSize);
     std::copy(data.begin() + START_CHR_ROM, data.begin() + START_CHR_ROM + header.chrRomSize, std::back_inserter(chrRom));
 
     // Read PlayChoice INST-ROM
     const size_t START_PLAYCHOICE_INST_ROM = HEADER_SIZE + header.prgRomSize + header.chrRomSize;
-    playchoiceInstRom.resize(header.playchoiceInstRomSize);
+    playchoiceInstRom.reserve(header.playchoiceInstRomSize);
     std::copy(data.begin() + START_PLAYCHOICE_INST_ROM, data.begin() + START_PLAYCHOICE_INST_ROM + header.playchoiceInstRomSize,
               std::back_inserter(playchoiceInstRom));
 
     // Read PlayChoice PROM
     const size_t START_PLAYCHOICE_PROM = HEADER_SIZE + header.prgRomSize + header.chrRomSize + header.playchoiceInstRomSize;
-    playchoiceProm.resize(header.playchoicePromSize);
+    playchoiceProm.reserve(header.playchoicePromSize);
     std::copy(data.begin() + START_PLAYCHOICE_PROM, data.begin() + START_PLAYCHOICE_PROM + header.playchoicePromSize, std::back_inserter(playchoiceProm));
 
     // Read title

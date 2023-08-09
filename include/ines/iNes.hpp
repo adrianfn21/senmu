@@ -23,6 +23,8 @@ class iNES {
 
     /* iNES format fields */
     struct {
+        std::uint8_t nPrgRomBanks;
+        std::uint8_t nChrRomBanks;
         size_t prgRomSize;
         size_t chrRomSize;
         std::uint8_t flags6;
@@ -40,6 +42,8 @@ class iNES {
     std::vector<std::uint8_t> playchoiceInstRom;
     std::vector<std::uint8_t> playchoiceProm;
     std::string title;
+
+    [[nodiscard]] constexpr std::uint8_t mapperNumber() const { return (header.flags7 & 0xF0) | (header.flags6 >> 4); }
 
   private:
     /* iNES format constants sizes */

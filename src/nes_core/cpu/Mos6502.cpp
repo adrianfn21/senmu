@@ -1,5 +1,5 @@
 #include "cpu/Mos6502.hpp"
-#include "Nes.hpp"
+#include "nes_core/Nes.hpp"
 
 namespace NES {
 

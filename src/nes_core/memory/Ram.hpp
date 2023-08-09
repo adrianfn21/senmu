@@ -18,6 +18,7 @@ class Ram {
 
     ~Ram() = default;
 
+    // RAM mirroring
     constexpr void write(std::uint16_t addr, std::uint8_t data) noexcept { memory[addr & (size - 1)] = data; }
 
     [[nodiscard]] constexpr std::uint8_t read(std::uint16_t addr) const noexcept { return memory[addr & (size - 1)]; }

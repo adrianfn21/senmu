@@ -1,5 +1,5 @@
-#include "Nes.hpp"
 #include "cpu/Mos6502.hpp"
+#include "nes_core/Nes.hpp"
 
 /**
  * Main module reference: https://www.nesdev.org/obelisk-6502-guide/addressing.html

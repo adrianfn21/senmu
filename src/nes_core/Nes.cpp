@@ -1,9 +1,9 @@
-#include "Nes.hpp"
+#include "nes_core/Nes.hpp"
 #include <iostream>
 
 namespace NES {
 
-NesSystem::NesSystem() : cpu(*this) {
+NesSystem::NesSystem(const iNES::iNES& rom) : gpak(rom), cpu(*this) {
     reset();
 }
 
@@ -41,32 +41,46 @@ uint64_t NesSystem::getInstructions() const noexcept {
     return cpu.getInstructions();
 }
 
-void NesSystem::loadRom(const std::vector<std::uint8_t>& romData) {
-    if (romData.size() > ROM_SIZE) {
-        std::cout << "ROM size is too big" << std::endl;
-        exit(1);
-    }
-
-    for (std::uint16_t i = 0; i < static_cast<std::uint16_t>(romData.size()); i++) {
-        cpuBusWrite(ROM_START + i, romData[i]);
-    }
-}
-
 void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
-    if (addr >= RAM_START && addr <= RAM_END) {
+    if (addr >= CPU_RAM_START && addr <= CPU_RAM_END) {
         ram.write(addr, data);
-    } else if (addr >= ROM_START && addr <= ROM_END) {
-        rom.write(addr, data);
+    } else if (addr >= CPU_PPU_START && addr <= CPU_PPU_END) {
+        // TODO: write to PPU
+    } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
+        // TODO: write to APU
+    } else if (addr >= CPU_CARTRIDGE_START && addr <= CPU_CARTRIDGE_END) {
+        gpak.prgRomWrite(addr, data);
     }
 }
 
 std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) const noexcept {
-    if (addr >= RAM_START && addr <= RAM_END) {
+    if (addr >= CPU_RAM_START && addr <= CPU_RAM_END) {
         return ram.read(addr);
-    } else if (addr >= ROM_START && addr <= ROM_END) {
-        return rom.read(addr);
+    } else if (addr >= CPU_PPU_START && addr <= CPU_PPU_END) {
+        // TODO: read from PPU
+    } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
+        // TODO: read from APU
+    } else if (addr >= CPU_CARTRIDGE_START && addr <= CPU_CARTRIDGE_END) {
+        return gpak.prgRomRead(addr);
     }
 
+    return 0x00;
+}
+
+void NesSystem::ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
+    if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
+        // TODO: read from ROM
+    } else if (addr >= PPU_NAME_TABLE_START && addr <= PPU_NAME_TABLE_END) {
+        // TODO: read from PPU VRAM
+    } else if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
+        // TODO: read from PPU Palette
+    }
+
+    data++;  // TODO: remove this
+}
+
+[[nodiscard]] std::uint8_t NesSystem::ppuBusRead(std::uint16_t addr) const noexcept {
+    addr++;  // TODO remove this
     return 0x00;
 }
 

@@ -41,9 +41,7 @@ TEST_CASE("Run nestest.nes", "[nestest]") {
     }
 
     SECTION("Simulation") {
-        NES::NesSystem nes;
-        iNES::iNES program(NES_TEST_ROM);
-        nes.loadRom(program.prgRom);
+        NES::NesSystem nes((iNES::iNES(NES_TEST_ROM)));
 
         // Set the PC to the start of the program without graphical interface
         nes.setPC(0xC000);
