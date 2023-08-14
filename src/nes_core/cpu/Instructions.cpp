@@ -13,6 +13,8 @@ namespace NES {
  * Loads a byte of memory into the accumulator setting the zero and negative flags as appropriate.
  */
 std::uint8_t MOS6502::LDA() {
+    fetched = sys.cpuBusRead(addr);
+
     r_A = fetched;
 
     r_status[Z] = r_A == 0x00;
@@ -24,6 +26,8 @@ std::uint8_t MOS6502::LDA() {
  * Loads a byte of memory into the X register setting the zero and negative flags as appropriate.
  */
 std::uint8_t MOS6502::LDX() {
+    fetched = sys.cpuBusRead(addr);
+
     r_X = fetched;
 
     r_status[Z] = r_X == 0x00;
@@ -35,6 +39,8 @@ std::uint8_t MOS6502::LDX() {
  * Loads a byte of memory into the Y register setting the zero and negative flags as appropriate.
  */
 std::uint8_t MOS6502::LDY() {
+    fetched = sys.cpuBusRead(addr);
+
     r_Y = fetched;
 
     r_status[Z] = r_Y == 0x00;
@@ -175,6 +181,8 @@ std::uint8_t MOS6502::PLP() {
  * Operation: A, Z, N <- A & M
  */
 std::uint8_t MOS6502::AND() {
+    fetched = sys.cpuBusRead(addr);
+
     r_A = r_A & fetched;
 
     r_status[Z] = r_A == 0x00;
@@ -188,6 +196,8 @@ std::uint8_t MOS6502::AND() {
  * Operation: A, Z, N <- A ^ M
  */
 std::uint8_t MOS6502::EOR() {
+    fetched = sys.cpuBusRead(addr);
+
     r_A = r_A ^ fetched;
 
     r_status[Z] = r_A == 0x00;
@@ -201,6 +211,8 @@ std::uint8_t MOS6502::EOR() {
  * Operation: A, Z, N <- A | M
  */
 std::uint8_t MOS6502::ORA() {
+    fetched = sys.cpuBusRead(addr);
+
     r_A = r_A | fetched;
 
     r_status[Z] = r_A == 0x00;
@@ -216,6 +228,8 @@ std::uint8_t MOS6502::ORA() {
  * Operation: Z, V, N <- A & M, M7, M6
  */
 std::uint8_t MOS6502::BIT() {
+    fetched = sys.cpuBusRead(addr);
+
     r_status[Z] = (r_A & fetched) == 0x00;
     r_status[V] = fetched & (1 << 6);
     r_status[N] = fetched & (1 << 7);
@@ -233,6 +247,8 @@ std::uint8_t MOS6502::BIT() {
  * Reference: https://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
  */
 std::uint8_t MOS6502::ADC() {
+    fetched = sys.cpuBusRead(addr);
+
     auto sum = static_cast<std::uint16_t>(r_A + fetched + r_status[C]);
 
     // Overflow happens if sign of r_A and fetched is equal but sign of sum is different.
@@ -253,12 +269,26 @@ std::uint8_t MOS6502::ADC() {
  * Operation: A, C, Z, V, N <- A - M - (1 - C)
  */
 std::uint8_t MOS6502::SBC() {
+    fetched = sys.cpuBusRead(addr);
+
     // We can simply reuse the ADC function by inverting the value to be added.
     // SBC performs A - M - (1 - C), which is equivalent to: A - M - 1 + C
     // If we invert M, we obtain -M - 1 due to the two's complement representation.
     // So, we end up obtaining: A - (-M - 1) - 1 + C  =  A + M + C
     fetched = ~fetched;
-    return ADC();
+
+    // Same code as ADC
+    auto sum = static_cast<std::uint16_t>(r_A + fetched + r_status[C]);
+
+    // Overflow happens if sign of r_A and fetched is equal but sign of sum is different.
+    r_status[V] = ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7);  // signed overflow
+
+    r_status[C] = sum > 0xFF;  // unsigned overflow
+    r_status[Z] = static_cast<std::uint8_t>(sum) == 0x00;
+    r_status[N] = sum & (1 << 7);
+
+    r_A = static_cast<std::uint8_t>(sum);
+    return 1;
 }
 
 /* Compare Accumulator.
@@ -267,6 +297,8 @@ std::uint8_t MOS6502::SBC() {
  * Operation: C, Z, N <- A - M
  */
 std::uint8_t MOS6502::CMP() {
+    fetched = sys.cpuBusRead(addr);
+
     r_status[C] = r_A >= fetched;
     r_status[Z] = r_A == fetched;
     r_status[N] = (r_A - fetched) & (1 << 7);
@@ -279,6 +311,8 @@ std::uint8_t MOS6502::CMP() {
  * Operation: C, Z, N <- X - M
  */
 std::uint8_t MOS6502::CPX() {
+    fetched = sys.cpuBusRead(addr);
+
     r_status[C] = r_X >= fetched;
     r_status[Z] = r_X == fetched;
     r_status[N] = (r_X - fetched) & (1 << 7);
@@ -291,6 +325,8 @@ std::uint8_t MOS6502::CPX() {
  * Operation: C, Z, N <- Y - M
  */
 std::uint8_t MOS6502::CPY() {
+    fetched = sys.cpuBusRead(addr);
+
     r_status[C] = r_Y >= fetched;
     r_status[Z] = r_Y == fetched;
     r_status[N] = (r_Y - fetched) & (1 << 7);
@@ -303,8 +339,9 @@ std::uint8_t MOS6502::CPY() {
  * Operation: M, Z, N <- M + 1
  */
 std::uint8_t MOS6502::INC() {
-    fetched++;
-    sys.cpuBusWrite(addr, fetched);
+    fetched = sys.cpuBusRead(addr);
+
+    sys.cpuBusWrite(addr, ++fetched);
 
     r_status[Z] = fetched == 0x00;
     r_status[N] = fetched & (1 << 7);
@@ -343,8 +380,9 @@ std::uint8_t MOS6502::INY() {
  * Operation: M, Z, N <- M - 1
  */
 std::uint8_t MOS6502::DEC() {
-    fetched--;
-    sys.cpuBusWrite(addr, fetched);
+    fetched = sys.cpuBusRead(addr);
+
+    sys.cpuBusWrite(addr, --fetched);
 
     r_status[Z] = fetched == 0x00;
     r_status[N] = fetched & (1 << 7);
@@ -385,6 +423,8 @@ std::uint8_t MOS6502::DEY() {
  * Operation: C, Z, N <- M * 2
  */
 std::uint8_t MOS6502::ASL() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 7 in the carry flag
     bool oldC = fetched & (1 << 7);
 
@@ -419,6 +459,8 @@ std::uint8_t MOS6502::ASA() {
  * Operation: C, Z, N <- M / 2
  */
 std::uint8_t MOS6502::LSR() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 0 in the carry flag
     bool oldC = fetched & (1 << 0);
 
@@ -454,6 +496,8 @@ std::uint8_t MOS6502::LSA() {
  * Operation: C, Z, N <- M * 2 + C
  */
 std::uint8_t MOS6502::ROL() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 7 in the carry flag
     bool oldC = fetched & (1 << 7);
 
@@ -491,6 +535,8 @@ std::uint8_t MOS6502::ROA() {
  * Operation: C, Z, N <- M / 2 + C * 128
  */
 std::uint8_t MOS6502::ROR() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 0 in the carry flag
     bool oldC = fetched & (1 << 0);
 
@@ -566,6 +612,8 @@ std::uint8_t MOS6502::RTS() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BCC() {
+    fetched = sys.cpuBusRead(addr);
+
     if (!r_status[C]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -582,6 +630,8 @@ std::uint8_t MOS6502::BCC() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BCS() {
+    fetched = sys.cpuBusRead(addr);
+
     if (r_status[C]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -598,6 +648,8 @@ std::uint8_t MOS6502::BCS() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BNE() {
+    fetched = sys.cpuBusRead(addr);
+
     if (!r_status[Z]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -614,6 +666,8 @@ std::uint8_t MOS6502::BNE() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BEQ() {
+    fetched = sys.cpuBusRead(addr);
+
     if (r_status[Z]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -630,6 +684,8 @@ std::uint8_t MOS6502::BEQ() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BPL() {
+    fetched = sys.cpuBusRead(addr);
+
     if (!r_status[N]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -646,6 +702,8 @@ std::uint8_t MOS6502::BPL() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BMI() {
+    fetched = sys.cpuBusRead(addr);
+
     if (r_status[N]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -662,6 +720,8 @@ std::uint8_t MOS6502::BMI() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BVC() {
+    fetched = sys.cpuBusRead(addr);
+
     if (!r_status[V]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -678,6 +738,8 @@ std::uint8_t MOS6502::BVC() {
  * to cause a branch to a new location.
  */
 std::uint8_t MOS6502::BVS() {
+    fetched = sys.cpuBusRead(addr);
+
     if (r_status[V]) {
         std::uint16_t oldPC = r_PC;
         r_PC = static_cast<std::uint16_t>(r_PC + static_cast<std::int8_t>(fetched));
@@ -782,6 +844,8 @@ std::uint8_t MOS6502::RTI() {
  * The undocumented LAX instruction loads the accumulator and the index register X from memory.
  */
 std::uint8_t MOS6502::LAX() {
+    fetched = sys.cpuBusRead(addr);
+
     r_A = fetched;
     r_X = fetched;
 
@@ -808,8 +872,9 @@ std::uint8_t MOS6502::SAX() {
  * Operation: M <- M - 1, C <- A - M
  */
 std::uint8_t MOS6502::DCP() {
-    fetched--;
-    sys.cpuBusWrite(addr, fetched);
+    fetched = sys.cpuBusRead(addr);
+
+    sys.cpuBusWrite(addr, --fetched);
 
     r_status[C] = r_A >= fetched;
     r_status[Z] = r_A == fetched;
@@ -824,11 +889,24 @@ std::uint8_t MOS6502::DCP() {
  * Operation: M <- M + 1, A <- A - M - (1 - C)
  */
 std::uint8_t MOS6502::ISC() {
-    fetched++;
-    sys.cpuBusWrite(addr, fetched);
+    fetched = sys.cpuBusRead(addr);
+
+    sys.cpuBusWrite(addr, ++fetched);
 
     // ISC does not introduce extra cycles
-    SBC();
+
+    // Same code as SBC
+    fetched = ~fetched;
+    auto sum = static_cast<std::uint16_t>(r_A + fetched + r_status[C]);
+
+    // Overflow happens if sign of r_A and fetched is equal but sign of sum is different.
+    r_status[V] = ((r_A ^ sum) & (fetched ^ sum)) & (1 << 7);  // signed overflow
+
+    r_status[C] = sum > 0xFF;  // unsigned overflow
+    r_status[Z] = static_cast<std::uint8_t>(sum) == 0x00;
+    r_status[N] = sum & (1 << 7);
+
+    r_A = static_cast<std::uint8_t>(sum);
     return 0;
 }
 
@@ -840,6 +918,8 @@ std::uint8_t MOS6502::ISC() {
  * Operation: M <- M << 1, A <- A | M
  */
 std::uint8_t MOS6502::SLO() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 7 in the carry flag
     bool oldC = fetched & (1 << 7);
 
@@ -861,6 +941,8 @@ std::uint8_t MOS6502::SLO() {
  * Operation: M <- M * 2 + C, A <- A & M
  */
 std::uint8_t MOS6502::RLA() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 7 in the carry flag
     bool oldC = fetched & (1 << 7);
 
@@ -883,6 +965,8 @@ std::uint8_t MOS6502::RLA() {
  * Operation: M <- M / 2, A <- A ^ M
  */
 std::uint8_t MOS6502::SRE() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 0 in the carry flag
     bool oldC = fetched & (1 << 0);
 
@@ -903,6 +987,8 @@ std::uint8_t MOS6502::SRE() {
  * Operation: M <- M / 2 + C * 128, A <- A + M + C
  */
 std::uint8_t MOS6502::RRA() {
+    fetched = sys.cpuBusRead(addr);
+
     // Save old bit 0 in the carry flag
     bool oldC = fetched & (1 << 0);
 

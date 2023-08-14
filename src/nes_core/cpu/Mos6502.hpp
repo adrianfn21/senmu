@@ -245,8 +245,8 @@ class MOS6502 {
     /* Addressing Modes supported by the 6502 CPU
      * Reference: https://www.nesdev.org/obelisk-6502-guide/addressing.html
      *
-     * All modes will fetch data from the bus and update the PC accordingly to the number of bytes it requires.
-     * Fetched data will be stored in the fetched variable, so that value can be used by the next instruction.
+     * All modes will calculate the target address of the instruction and update the PC accordingly to the number of bytes it requires.
+     * The address is stored in the addr variable, so the instruction can fetch the data from the memory using it.
      * Special cases:
      * - IMP: does not fetch any data.
      * - IND: only used by JMP instruction, only fetches the address to jump to (addr).
