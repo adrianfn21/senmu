@@ -16,19 +16,19 @@ class Mapper_000 : public Mapper {
 
     ~Mapper_000() override = default;
 
-    std::uint32_t mapPrgRomRead(std::uint16_t addr) const noexcept override {
+    [[nodiscard]] std::uint32_t mapPrgRomRead(std::uint16_t addr) const noexcept override {
         // PRG ROM ranges from 0x8000 to 0xFFFF for the CPU
         return addr & (nPrgRomBanks > 1 ? 0x7FFF : 0x3FFF);
     }
 
-    std::uint32_t mapPrgRomWrite([[maybe_unused]] std::uint16_t addr) noexcept override { assert(false && "PRG ROM write not supported"); }
+    [[nodiscard]] std::uint32_t mapPrgRomWrite([[maybe_unused]] std::uint16_t addr) const noexcept override { assert(false && "PRG ROM write not supported"); }
 
-    std::uint32_t mapChrRomRead(std::uint16_t addr) const noexcept override {
+    [[nodiscard]] std::uint32_t mapChrRomRead(std::uint16_t addr) const noexcept override {
         // CHR ROM ranges from 0x0000 to 0x1FFF for the PPU
         return addr;
     }
 
-    std::uint32_t mapChrRomWrite([[maybe_unused]] std::uint16_t addr) noexcept override { assert(false && "CHR ROM write not supported"); }
+    [[nodiscard]] std::uint32_t mapChrRomWrite([[maybe_unused]] std::uint16_t addr) const noexcept override { assert(false && "CHR ROM write not supported"); }
 };
 
 }  // namespace NES

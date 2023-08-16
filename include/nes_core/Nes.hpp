@@ -5,7 +5,9 @@
 #include <vector>
 #include "cartridge/GamePak.hpp"
 #include "cpu/Mos6502.hpp"
+#include "memory/PaletteRam.hpp"
 #include "memory/Ram.hpp"
+#include "ppu/Ntsc2C02.hpp"
 
 namespace NES {
 
@@ -30,27 +32,52 @@ class NesSystem {
 
     void reset() noexcept;
     void cycle() noexcept;
-    void step() noexcept;
+
+    void runUntilFrame() noexcept;
 
     bool isRunning();
 
     void setPC(std::uint16_t pc) noexcept;
     [[nodiscard]] std::uint16_t getPC() const noexcept;
 
-    [[nodiscard]] uint64_t getCycles() const noexcept;
-    [[nodiscard]] uint64_t getInstructions() const noexcept;
+    [[nodiscard]] std::uint64_t getCycles() const noexcept;
+    [[nodiscard]] std::uint64_t getInstructions() const noexcept;
+
+  public:
+    [[nodiscard]] std::array<std::uint8_t, 8 * 8> getSprite(std::uint8_t tile, bool rightTable = false) const noexcept;
+    [[nodiscard]] std::array<std::uint8_t, 8 * 8> getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept;
+
+    [[nodiscard]] Color getColor(std::uint8_t palette, std::uint8_t color) const noexcept;
 
   public:
     void cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept;
-    [[nodiscard]] std::uint8_t cpuBusRead(std::uint16_t addr) const noexcept;
+    [[nodiscard]] std::uint8_t cpuBusRead(std::uint16_t addr) noexcept;
 
     void ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept;
     [[nodiscard]] std::uint8_t ppuBusRead(std::uint16_t addr) const noexcept;
 
+  public:
+    /**
+     * @brief Generate delayed NMI interrupt.
+     *
+     * This function is called when the PPU detects the VBLANK flag is set. The NMI
+     * interrupt will be generated after the current/next instruction is executed.
+     */
+    void generateNmi() noexcept { pendingNmi = true; }
+
   private:
-    Ram<2 * 1024> ram;  // 2 KB
+    Ram<2 * 1024> ram;      // 2 KB
+    Ram<2 * 1024> vram;     // 2 KB
+    PaletteRam paletteRam;  // 32 B
     GamePak gpak;
     MOS6502 cpu;
+    NTSC2C02 ppu;
+
+    // Flags
+    bool pendingNmi = false;
+
+    // Counters
+    std::uint64_t clockCounter = 0;
 
     // Constants
     static constexpr std::uint16_t CPU_RAM_START = 0x0000;

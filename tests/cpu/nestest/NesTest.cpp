@@ -49,7 +49,7 @@ TEST_CASE("Run nestest.nes", "[nestest]") {
         // Run all the instructions that compose the test
         // If the simulation is accurate, it should run exactly 8991 instructions
         while (nes.getInstructions() < MAX_INSTRUCTIONS && nes.isRunning()) {
-            nes.step();
+            nes.cycle();
 
             // Check for errors after each instruction
             // Bytes to check have been selected by trial and error

@@ -3,22 +3,36 @@
 
 namespace NES {
 
-NesSystem::NesSystem(const iNES::iNES& rom) : gpak(rom), cpu(*this) {
+NesSystem::NesSystem(const iNES::iNES& rom) : gpak(rom), cpu(*this), ppu(*this) {
     reset();
 }
 
 NesSystem::~NesSystem() = default;
 
 void NesSystem::reset() noexcept {
+    clockCounter = 0;
+    pendingNmi = false;
     cpu.reset();
 }
 
 void NesSystem::cycle() noexcept {
-    cpu.cycle();
+    ppu.cycle();
+    if ((clockCounter & 0x03) == 0) {
+        cpu.cycle();
+    }
+
+    if (pendingNmi) [[unlikely]] {
+        cpu.nmi();
+        pendingNmi = false;
+    }
+
+    clockCounter++;
 }
 
-void NesSystem::step() noexcept {
-    cpu.step();
+void NesSystem::runUntilFrame() noexcept {
+    do {
+        cycle();
+    } while (!ppu.isFrameCompleted());
 }
 
 bool NesSystem::isRunning() {
@@ -41,25 +55,77 @@ uint64_t NesSystem::getInstructions() const noexcept {
     return cpu.getInstructions();
 }
 
+std::array<std::uint8_t, 8 * 8> NesSystem::getSprite(std::uint8_t tile, bool rightTable) const noexcept {
+    return gpak.getSprite(tile, rightTable);
+}
+
+std::array<std::uint8_t, 8 * 8> NesSystem::getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept {
+    return getSprite(static_cast<uint8_t>(tileI * 16 + tileJ), rightTable);
+}
+
+Color NesSystem::getColor(std::uint8_t palette, std::uint8_t color) const noexcept {
+    return paletteRam.getColor(palette, color);
+}
+
 void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
     if (addr >= CPU_RAM_START && addr <= CPU_RAM_END) {
         ram.write(addr, data);
+
     } else if (addr >= CPU_PPU_START && addr <= CPU_PPU_END) {
-        // TODO: write to PPU
+        switch (addr) {
+            case CPU_PPU_START:
+                ppu.controllerWrite(data);
+                break;
+            case CPU_PPU_START + 1:
+                ppu.maskWrite(data);
+                break;
+            case CPU_PPU_START + 2:
+                // TODO
+                break;
+            case CPU_PPU_START + 3:
+                // TODO
+                break;
+            case CPU_PPU_START + 4:
+                // TODO
+                break;
+            case CPU_PPU_START + 5:
+                ppu.scrollWrite(data);
+                break;
+            case CPU_PPU_START + 6:
+                ppu.addressWrite(data);
+                break;
+            case CPU_PPU_START + 7:
+                ppu.dataWrite(data);
+                break;
+            default:
+                break;
+        }
+
     } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
         // TODO: write to APU
+
     } else if (addr >= CPU_CARTRIDGE_START && addr <= CPU_CARTRIDGE_END) {
         gpak.prgRomWrite(addr, data);
     }
 }
 
-std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) const noexcept {
+std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) noexcept {
     if (addr >= CPU_RAM_START && addr <= CPU_RAM_END) {
         return ram.read(addr);
+
     } else if (addr >= CPU_PPU_START && addr <= CPU_PPU_END) {
-        // TODO: read from PPU
+        switch (addr) {
+            case CPU_PPU_START + 2:
+                return ppu.statusRead();
+            case CPU_PPU_START + 7:
+                return ppu.dataRead();
+            default:
+                break;
+        }
+
     } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
         // TODO: read from APU
+
     } else if (addr >= CPU_CARTRIDGE_START && addr <= CPU_CARTRIDGE_END) {
         return gpak.prgRomRead(addr);
     }
@@ -68,19 +134,27 @@ std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) const noexcept {
 }
 
 void NesSystem::ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
-    if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
-        // TODO: read from ROM
-    } else if (addr >= PPU_NAME_TABLE_START && addr <= PPU_NAME_TABLE_END) {
-        // TODO: read from PPU VRAM
-    } else if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
-        // TODO: read from PPU Palette
-    }
+    if (addr >= PPU_PATTERN_TABLE_START && addr <= PPU_PATTERN_TABLE_END) {
+        gpak.chrRomWrite(addr, data);
 
-    data++;  // TODO: remove this
+    } else if (addr >= PPU_NAME_TABLE_START && addr <= PPU_NAME_TABLE_END) {
+        vram.write(addr, data);
+
+    } else if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
+        paletteRam.write(addr, data);
+    }
 }
 
 [[nodiscard]] std::uint8_t NesSystem::ppuBusRead(std::uint16_t addr) const noexcept {
-    addr++;  // TODO remove this
+    if (addr >= PPU_PATTERN_TABLE_START && addr <= PPU_PATTERN_TABLE_END) {
+        return gpak.chrRomRead(addr);
+
+    } else if (addr >= PPU_NAME_TABLE_START && addr <= PPU_NAME_TABLE_END) {
+        return vram.read(addr);
+
+    } else if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
+        return paletteRam.read(addr);
+    }
     return 0x00;
 }
 

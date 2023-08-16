@@ -25,6 +25,7 @@ endif ()
 
 #===================== FINDING LIBRARIES ======================#
 find_package(catch2 CONFIG REQUIRED)
+find_package(SFML COMPONENTS system window graphics CONFIG REQUIRED)
 
 #====================== PROJECT FOLDERS =======================#
 set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/src")

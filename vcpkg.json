@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "A NES Emulator written in modern C++",
   "dependencies": [
-    "catch2"
+    "catch2",
+    "sfml"
   ]
 }

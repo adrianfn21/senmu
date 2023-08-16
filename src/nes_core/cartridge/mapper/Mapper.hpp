@@ -9,13 +9,13 @@ class Mapper {
   public:
     Mapper(std::uint8_t nPrgRomBanks, std::uint8_t nChrRomBanks) : nPrgRomBanks(nPrgRomBanks), nChrRomBanks(nChrRomBanks) {}
 
-    virtual ~Mapper() {}
+    virtual ~Mapper() = default;
 
-    virtual std::uint32_t mapPrgRomRead(std::uint16_t addr) const noexcept = 0;
-    virtual std::uint32_t mapPrgRomWrite(std::uint16_t addr) noexcept = 0;
+    [[nodiscard]] virtual std::uint32_t mapPrgRomRead(std::uint16_t addr) const noexcept = 0;
+    [[nodiscard]] virtual std::uint32_t mapPrgRomWrite(std::uint16_t addr) const noexcept = 0;
 
-    virtual std::uint32_t mapChrRomRead(std::uint16_t addr) const noexcept = 0;
-    virtual std::uint32_t mapChrRomWrite(std::uint16_t addr) noexcept = 0;
+    [[nodiscard]] virtual std::uint32_t mapChrRomRead(std::uint16_t addr) const noexcept = 0;
+    [[nodiscard]] virtual std::uint32_t mapChrRomWrite(std::uint16_t addr) const noexcept = 0;
 
   protected:
     std::uint8_t nPrgRomBanks = 0;
