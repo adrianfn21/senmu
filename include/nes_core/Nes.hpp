@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include "cartridge/GamePak.hpp"
+#include "common/Image.hpp"
 #include "cpu/Mos6502.hpp"
 #include "memory/PaletteRam.hpp"
 #include "memory/Ram.hpp"
@@ -44,10 +45,11 @@ class NesSystem {
     [[nodiscard]] std::uint64_t getInstructions() const noexcept;
 
   public:
-    [[nodiscard]] std::array<std::uint8_t, 8 * 8> getSprite(std::uint8_t tile, bool rightTable = false) const noexcept;
-    [[nodiscard]] std::array<std::uint8_t, 8 * 8> getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept;
+    [[nodiscard]] Image<Palette, 8, 8> getSprite(std::uint8_t tile, bool rightTable = false) const noexcept;
+    [[nodiscard]] Image<Palette, 8, 8> getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept;
 
     [[nodiscard]] Color getColor(std::uint8_t palette, std::uint8_t color) const noexcept;
+    [[nodiscard]] std::array<Color, 4> getPalette(std::uint8_t palette) const noexcept;
 
   public:
     void cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept;
@@ -66,6 +68,7 @@ class NesSystem {
     void generateNmi() noexcept { pendingNmi = true; }
 
   private:
+  public:                   // TODO REMOVE LATER
     Ram<2 * 1024> ram;      // 2 KB
     Ram<2 * 1024> vram;     // 2 KB
     PaletteRam paletteRam;  // 32 B

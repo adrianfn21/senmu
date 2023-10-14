@@ -20,13 +20,13 @@ namespace NES {
 template <std::size_t size>
 class Ram {
   public:
+    static_assert(size <= 0xFFFF + 1, "Ram size must be less than 64 KB");
+    static_assert((size & (size - 1)) == 0, "Ram size must be power of 2");
+
     /**
      * @brief Default constructor
      */
-    Ram() {
-        static_assert(size <= 0xFFFF + 1, "Ram size must be less than 64 KB");
-        static_assert((size & (size - 1)) == 0, "Ram size must be power of 2");
-    };
+    Ram() = default;
 
     /**
      * @brief Default destructor

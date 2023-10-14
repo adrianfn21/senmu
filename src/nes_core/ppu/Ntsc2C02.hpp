@@ -2,6 +2,7 @@
 #define NES_EMULATOR_NTSC2C02_HPP
 
 #include <bitset>
+#include "common/Image.hpp"
 #include "memory/Ram.hpp"
 
 namespace NES {
@@ -116,6 +117,15 @@ class NTSC2C02 {
      * @return True if the PPU is rendering (frame is ready), false otherwise.
      */
     [[nodiscard]] constexpr bool isFrameCompleted() const noexcept { return frameCompleted; }
+
+  public:
+    [[nodiscard]] Image<Color, 256, 240> renderFrame() const noexcept;
+
+    [[nodiscard]] Image<Color, 256, 240> renderBackground() const noexcept;
+
+    [[nodiscard]] Image<Color, 256, 240> renderForeground() const noexcept;
+
+    [[nodiscard]] Image<Color, 128, 128> renderPatternTable(uint8_t table, uint8_t palette = 0xFF) const noexcept;
 
   private:
     /* Counters */

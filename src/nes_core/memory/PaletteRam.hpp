@@ -1,21 +1,10 @@
 #ifndef NES_EMULATOR_PALETTERAM_HPP
 #define NES_EMULATOR_PALETTERAM_HPP
 
+#include "common/Image.hpp"
 #include "memory/Ram.hpp"
 
 namespace NES {
-
-/**
- * @brief Color struct
- *
- * This struct represents a color in the NES palette. It is composed of 3 bytes, one for each
- * color component (red, green and blue).
- */
-struct Color {
-    std::uint8_t r;
-    std::uint8_t g;
-    std::uint8_t b;
-};
 
 /**
  * @brief Palette RAM of 32 bytes
@@ -88,6 +77,16 @@ class PaletteRam : private Ram<0x20> {
         constexpr uint8_t PALETTE_SIZE = 4;
         const uint8_t colorValue = PaletteRam::read(static_cast<uint16_t>((palette * PALETTE_SIZE) + (color & (PALETTE_SIZE - 1))));
         return NTSC_PALETTE[colorValue & (NTSC_PALETTE.size() - 1)];
+    }
+
+    /**
+     * @brief Get a color palette
+     *
+     * @param palette Index of palette
+     * @return Palette
+     */
+    [[nodiscard]] constexpr std::array<Color, 4> getPalette(std::uint8_t palette) const noexcept {
+        return {getColor(palette, 0x00), getColor(palette, 0x01), getColor(palette, 0x02), getColor(palette, 0x03)};
     }
 
     // Array that contains the color mapping of each palette value

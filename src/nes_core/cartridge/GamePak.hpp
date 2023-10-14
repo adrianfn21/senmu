@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include "cartridge/mapper/Mapper.hpp"
+#include "common/Image.hpp"
 #include "ines/iNes.hpp"
 
 namespace NES {
@@ -43,9 +44,9 @@ class GamePak {
      * @param rightTable If true, use the right table, otherwise use the left table
      *
      * @pre tile >= 0 and tile <= 255
-     * @return A 8x8 array of bytes representing the tile, stored in row-major format. Each value represent the value of the palette to use.
+     * @return A 8x8 Image of bytes representing the tile, stored in row-major format. Each value represent the value of the palette to use.
      */
-    [[nodiscard]] std::array<std::uint8_t, 8 * 8> getSprite(std::uint8_t tile, bool rightTable) const noexcept;
+    [[nodiscard]] Image<Palette, 8, 8> getSprite(std::uint8_t tile, bool rightTable) const noexcept;
 
   protected:
     // Program ROM

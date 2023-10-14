@@ -35,7 +35,7 @@ std::uint8_t GamePak::chrRomRead(std::uint16_t addr) const noexcept {
     return chrRom[readAddr];
 }
 
-std::array<std::uint8_t, 8 * 8> GamePak::getSprite(std::uint8_t tile, bool rightTable) const noexcept {
+Image<Palette, 8, 8> GamePak::getSprite(std::uint8_t tile, bool rightTable) const noexcept {
     /* Addressing of CHR ROM
      *
      * DCBA98 76543210
@@ -49,7 +49,7 @@ std::array<std::uint8_t, 8 * 8> GamePak::getSprite(std::uint8_t tile, bool right
      * +--------------- 0: Pattern table is at $0000-$1FFF
      */
 
-    std::array<std::uint8_t, 8 * 8> sprite;
+    Image<Palette, 8, 8> sprite;
     constexpr std::size_t TILE_SIZE = 8;
     constexpr std::size_t TILE_BYTES = 16;
 
@@ -67,7 +67,7 @@ std::array<std::uint8_t, 8 * 8> GamePak::getSprite(std::uint8_t tile, bool right
             // Read a pixel of each row of the tile
             std::uint8_t lsb = static_cast<std::uint8_t>(tileLsb >> (7 - j)) & 0x01;
             std::uint8_t msb = static_cast<std::uint8_t>((tileMsb >> (7 - j)) << 1) & 0x02;
-            sprite[i * TILE_SIZE + j] = msb | lsb;
+            sprite[i][j] = msb | lsb;
         }
     }
 

@@ -1,49 +1,28 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <string>
 #include "ines/iNes.hpp"
 #include "nes_core/Nes.hpp"
 
-sf::Image getPatternTable(const NES::NesSystem& nes, uint8_t patternTable, uint8_t palette, unsigned int width, unsigned int height) {
-    sf::Image pattern;
-    pattern.create(width, height, sf::Color::Black);
+int main(int argc, char** argv) {
+    // args: [1] path to rom
 
-    constexpr size_t TILE_SIZE = 8;
-    constexpr size_t GRID_TILE_SIZE = 16;
-
-    std::array<sf::Color, 4> paletteColors;
-    for (uint8_t c = 0x00; c < 0x04; c++) {
-        NES::Color color = nes.getColor(palette, c);
-        paletteColors[c] = sf::Color(color.r, color.g, color.b);
+    if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " <path to rom>" << std::endl;
+        return 1;
     }
 
-    for (size_t tile_i = 0; tile_i < GRID_TILE_SIZE; tile_i++) {
-        for (size_t tile_j = 0; tile_j < GRID_TILE_SIZE; tile_j++) {
-
-            auto data = nes.getSprite(static_cast<uint8_t>(tile_i), static_cast<uint8_t>(tile_j), patternTable);
-
-            for (size_t pixel_i = 0; pixel_i < 8; pixel_i++) {
-                for (size_t pixel_j = 0; pixel_j < 8; pixel_j++) {
-                    sf::Color c = paletteColors[data[pixel_i * TILE_SIZE + pixel_j]];
-                    pattern.setPixel(static_cast<unsigned int>(tile_j * TILE_SIZE + pixel_j), static_cast<unsigned int>(tile_i * TILE_SIZE + pixel_i), c);
-                }
-            }
-        }
-    }
-
-    return pattern;
-}
-
-const std::string GAME_PATH = "nestest.nes";
-
-int main() {
+    const std::string GAME_PATH = argv[1];
 
     constexpr size_t PATTERNS_SIZE = 128;
     constexpr size_t SCALE_FACTOR = 2;
 
+    sf::RenderWindow bgWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Background");
     sf::RenderWindow patternWindow1(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 1");
     sf::RenderWindow patternWindow2(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 2");
     patternWindow1.setPosition(sf::Vector2i(0, 0));
     patternWindow2.setPosition(sf::Vector2i(PATTERNS_SIZE * SCALE_FACTOR, 0));
+    bgWindow.setPosition(sf::Vector2i(0, PATTERNS_SIZE * SCALE_FACTOR));
 
     NES::NesSystem nes((iNES::iNES(GAME_PATH)));
 
@@ -76,23 +55,37 @@ int main() {
 
         nes.runUntilFrame();
 
+        NES::Image<NES::Color, 128, 128> leftPattern = nes.ppu.renderPatternTable(0, selectedPalette);
+        NES::Image<NES::Color, 128, 128> rightPattern = nes.ppu.renderPatternTable(1, selectedPalette);
+
+        auto display = []<size_t width, size_t height>(sf::RenderWindow& rw, const NES::Image<NES::Color, width, height>& img) {
+            sf::Image sfmlImage;
+            sfmlImage.create(width, height);
+
+            for (unsigned int y = 0; y < height; y++) {
+                for (unsigned int x = 0; x < width; x++) {
+                    sfmlImage.setPixel(x, y, sf::Color(img[y][x].r, img[y][x].g, img[y][x].b));
+                }
+            }
+
+            sf::Texture texture;
+            texture.loadFromImage(sfmlImage);
+            sf::Sprite sprite;
+            sprite.setTexture(texture);
+            sprite.setScale(SCALE_FACTOR, SCALE_FACTOR);
+
+            rw.draw(sprite);
+            rw.display();
+        };
+
         patternWindow1.clear();
-        sf::Image img = getPatternTable(nes, 0, selectedPalette, PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR);
-        sf::Texture patternTexture;
-        patternTexture.loadFromImage(img);
-        sf::Sprite patternSprite;
-        patternSprite.setTexture(patternTexture);
-        patternSprite.setScale(SCALE_FACTOR, SCALE_FACTOR);
-        patternWindow1.draw(patternSprite);
-        patternWindow1.display();
+        display(patternWindow1, leftPattern);
 
         patternWindow2.clear();
-        img = getPatternTable(nes, 1, selectedPalette, PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR);
-        patternTexture.loadFromImage(img);
-        patternSprite.setTexture(patternTexture);
-        patternSprite.setScale(SCALE_FACTOR, SCALE_FACTOR);
-        patternWindow2.draw(patternSprite);
-        patternWindow2.display();
+        display(patternWindow2, rightPattern);
+
+        bgWindow.clear();
+        display(bgWindow, nes.ppu.renderBackground());
     }
 
     return 0;

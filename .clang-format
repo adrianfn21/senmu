@@ -54,6 +54,7 @@ IndentCaseLabels: true
 IndentPPDirectives: None
 IndentWidth: 4
 KeepEmptyLinesAtTheStartOfBlocks: true
+LineEnding: LF
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
 ObjCSpaceAfterProperty: false

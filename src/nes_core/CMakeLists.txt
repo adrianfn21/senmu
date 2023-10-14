@@ -6,3 +6,4 @@ file(GLOB_RECURSE SOURCES
 add_library(nes_core ${SOURCES})
 target_include_directories(nes_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(nes_core PUBLIC ${INCLUDE_DIR})
+target_link_libraries(nes_core PUBLIC ines)

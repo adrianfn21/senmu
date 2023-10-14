@@ -55,16 +55,20 @@ uint64_t NesSystem::getInstructions() const noexcept {
     return cpu.getInstructions();
 }
 
-std::array<std::uint8_t, 8 * 8> NesSystem::getSprite(std::uint8_t tile, bool rightTable) const noexcept {
+Image<Palette, 8, 8> NesSystem::getSprite(std::uint8_t tile, bool rightTable) const noexcept {
     return gpak.getSprite(tile, rightTable);
 }
 
-std::array<std::uint8_t, 8 * 8> NesSystem::getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept {
+Image<Palette, 8, 8> NesSystem::getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept {
     return getSprite(static_cast<uint8_t>(tileI * 16 + tileJ), rightTable);
 }
 
 Color NesSystem::getColor(std::uint8_t palette, std::uint8_t color) const noexcept {
     return paletteRam.getColor(palette, color);
+}
+
+std::array<Color, 4> NesSystem::getPalette(std::uint8_t palette) const noexcept {
+    return paletteRam.getPalette(palette);
 }
 
 void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {

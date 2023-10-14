@@ -24,7 +24,7 @@ else (CMAKE_BUILD_TYPE MATCHES Release)
 endif ()
 
 #===================== FINDING LIBRARIES ======================#
-find_package(catch2 CONFIG REQUIRED)
+find_package(Catch2 CONFIG REQUIRED)
 find_package(SFML COMPONENTS system window graphics CONFIG REQUIRED)
 
 #====================== PROJECT FOLDERS =======================#
