@@ -150,6 +150,71 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
     return bg;
 }
 
+// TODO: refactor this methods later
+Image<Color, 256, 240> NTSC2C02::renderNametable1() const noexcept {
+    Image<Color, 256, 240> bg;
+
+    std::array<std::array<NES::Color, 4>, 4> bgPalette = {
+        sys.getPalette(0x00),
+        sys.getPalette(0x01),
+        sys.getPalette(0x02),
+        sys.getPalette(0x03),
+    };
+
+    size_t nametable = 0x2000;
+
+    for (size_t nt_y = 0; nt_y < 30; nt_y++) {
+        for (size_t nt_x = 0; nt_x < 32; nt_x++) {
+
+            int position = static_cast<int>(nametable + nt_y * 32 + nt_x);
+            Image<Palette, 8, 8> sprite = sys.getSprite(sys.vram.read(static_cast<uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
+
+            uint8_t attribute = sys.vram.read(static_cast<uint16_t>(nametable + 32 * 30 + (nt_y >> 2) * 8 + (nt_x >> 2)));
+            size_t palette = (attribute >> (((nt_y & 0x02) + ((nt_x & 0x02) >> 1)) * 2)) & 0x03;
+
+            for (size_t y = 0; y < 8; y++) {
+                for (size_t x = 0; x < 8; x++) {
+                    bg[nt_y * 8 + y][nt_x * 8 + x] = bgPalette[palette][sprite[y][x]];
+                }
+            }
+        }
+    }
+
+    return bg;
+}
+
+Image<Color, 256, 240> NTSC2C02::renderNametable2() const noexcept {
+    Image<Color, 256, 240> bg;
+
+    std::array<std::array<NES::Color, 4>, 4> bgPalette = {
+        sys.getPalette(0x00),
+        sys.getPalette(0x01),
+        sys.getPalette(0x02),
+        sys.getPalette(0x03),
+    };
+
+    size_t nametable = 0x2C00;
+
+    for (size_t nt_y = 0; nt_y < 30; nt_y++) {
+        for (size_t nt_x = 0; nt_x < 32; nt_x++) {
+
+            int position = static_cast<int>(nametable + nt_y * 32 + nt_x);
+            Image<Palette, 8, 8> sprite = sys.getSprite(sys.vram.read(static_cast<uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
+
+            uint8_t attribute = sys.vram.read(static_cast<uint16_t>(nametable + 32 * 30 + (nt_y >> 2) * 8 + (nt_x >> 2)));
+            size_t palette = (attribute >> (((nt_y & 0x02) + ((nt_x & 0x02) >> 1)) * 2)) & 0x03;
+
+            for (size_t y = 0; y < 8; y++) {
+                for (size_t x = 0; x < 8; x++) {
+                    bg[nt_y * 8 + y][nt_x * 8 + x] = bgPalette[palette][sprite[y][x]];
+                }
+            }
+        }
+    }
+
+    return bg;
+}
+
 Image<Color, 256, 240> NTSC2C02::renderForeground() const noexcept {
     //    std::array<std::array<NES::Color, 4>, 4> fgPalette = {
     //        sys.getPalette(0x04),

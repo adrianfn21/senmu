@@ -8,6 +8,7 @@
 #include "cpu/Mos6502.hpp"
 #include "memory/PaletteRam.hpp"
 #include "memory/Ram.hpp"
+#include "memory/VRam.hpp"
 #include "ppu/Ntsc2C02.hpp"
 
 namespace NES {
@@ -68,10 +69,43 @@ class NesSystem {
     void generateNmi() noexcept { pendingNmi = true; }
 
   private:
-  public:                   // TODO REMOVE LATER
-    Ram<2 * 1024> ram;      // 2 KB
-    Ram<2 * 1024> vram;     // 2 KB
-    PaletteRam paletteRam;  // 32 B
+  public:  // TODO REMOVE LATER
+    /**
+     * @brief CPU RAM
+     *
+     * The NES has 2 KB of RAM, which is used to store the stack and game data.
+     *
+     * @see Example of a RAM memory map from a game: https://www.nesdev.org/wiki/Sample_RAM_map
+     */
+    Ram<2 * 1024> ram;
+
+    /**
+     * @brief Video RAM
+     *
+     * The NES has 2 KB of video RAM, which is used to store the nametables and the attribute
+     * tables. Each nametable uses 1 KB of memory. The memory is mirrored horizontally or
+     * vertically depending on the mirroring mode of the game.
+     *
+     * The nametables are used to store the tiles that will be rendered on the screen. Each
+     * tile is 8x8 pixels, and each nametable can store 30x32 tiles. The attribute tables
+     * are used to store the palette of each tile. Each tile uses 2 bits to store the palette
+     * index, so each attribute table can store 64 tiles.
+     *
+     * @see Memory mapping: https://www.nesdev.org/wiki/PPU_memory_map
+     * @see Nametables structure: https://www.nesdev.org/wiki/PPU_nametables
+     * @see Attribute table structure: https://www.nesdev.org/wiki/PPU_attribute_tables
+     * @see Mirroring modes of nametables: https://www.nesdev.org/wiki/Mirroring
+     */
+    VRam vram;
+
+    /**
+     * @brief Palette RAM
+     *
+     * The NES has 32 bytes of palette RAM, which is used to store the color palette of the
+     * tiles. Each palette has 4 colors, and each color uses 3 bytes to store the RGB values.
+     */
+    PaletteRam paletteRam;
+
     GamePak gpak;
     MOS6502 cpu;
     NTSC2C02 ppu;

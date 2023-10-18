@@ -18,11 +18,15 @@ int main(int argc, char** argv) {
     constexpr size_t SCALE_FACTOR = 2;
 
     sf::RenderWindow bgWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Background");
+    sf::RenderWindow nametableWindow1(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 1");
+    sf::RenderWindow nametableWindow2(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 2");
     sf::RenderWindow patternWindow1(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 1");
     sf::RenderWindow patternWindow2(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 2");
-    patternWindow1.setPosition(sf::Vector2i(0, 0));
-    patternWindow2.setPosition(sf::Vector2i(PATTERNS_SIZE * SCALE_FACTOR, 0));
-    bgWindow.setPosition(sf::Vector2i(0, PATTERNS_SIZE * SCALE_FACTOR));
+    bgWindow.setPosition(sf::Vector2i(0, 0));
+    nametableWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 0));
+    nametableWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR * 2, 0));
+    patternWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 240 * SCALE_FACTOR));
+    patternWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR + PATTERNS_SIZE * SCALE_FACTOR, 240 * SCALE_FACTOR));
 
     NES::NesSystem nes((iNES::iNES(GAME_PATH)));
 
@@ -55,9 +59,6 @@ int main(int argc, char** argv) {
 
         nes.runUntilFrame();
 
-        NES::Image<NES::Color, 128, 128> leftPattern = nes.ppu.renderPatternTable(0, selectedPalette);
-        NES::Image<NES::Color, 128, 128> rightPattern = nes.ppu.renderPatternTable(1, selectedPalette);
-
         auto display = []<size_t width, size_t height>(sf::RenderWindow& rw, const NES::Image<NES::Color, width, height>& img) {
             sf::Image sfmlImage;
             sfmlImage.create(width, height);
@@ -79,13 +80,19 @@ int main(int argc, char** argv) {
         };
 
         patternWindow1.clear();
-        display(patternWindow1, leftPattern);
+        display(patternWindow1, nes.ppu.renderPatternTable(0, selectedPalette));
 
         patternWindow2.clear();
-        display(patternWindow2, rightPattern);
+        display(patternWindow2, nes.ppu.renderPatternTable(1, selectedPalette));
 
         bgWindow.clear();
         display(bgWindow, nes.ppu.renderBackground());
+
+        nametableWindow1.clear();
+        display(nametableWindow1, nes.ppu.renderNametable1());
+
+        nametableWindow2.clear();
+        display(nametableWindow2, nes.ppu.renderNametable2());
     }
 
     return 0;

@@ -62,6 +62,10 @@ iNES::iNES(const std::string& filepath) {
 
     // Close file
     file.close();
+
+    // Extract useful information from flags
+    mirroring = (header.flags6 & (1 << 3)) ? NtMirroring::FOUR_SCREEN : ((header.flags6 & (1 << 0)) ? NtMirroring::VERTICAL : NtMirroring::HORIZONTAL);
+    mapperNumber = (header.flags7 & 0xF0) | (header.flags6 >> 4);
 }
 
 }  // namespace iNES

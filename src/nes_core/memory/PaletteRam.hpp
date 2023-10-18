@@ -13,7 +13,7 @@ namespace NES {
  * all address that exceeds the size of the RAM). Also, it applies the background mirroring
  * to the addresses that are in the range 0x3F10 - 0x3F1F.
  *
- * @see PaletteRam::bgMirror
+ * @see Memory structure: https://www.nesdev.org/wiki/PPU_palettes
  */
 class PaletteRam : private Ram<0x20> {
   public:

@@ -123,6 +123,10 @@ class NTSC2C02 {
 
     [[nodiscard]] Image<Color, 256, 240> renderBackground() const noexcept;
 
+    [[nodiscard]] Image<Color, 256, 240> renderNametable1() const noexcept;
+    
+    [[nodiscard]] Image<Color, 256, 240> renderNametable2() const noexcept;
+
     [[nodiscard]] Image<Color, 256, 240> renderForeground() const noexcept;
 
     [[nodiscard]] Image<Color, 128, 128> renderPatternTable(uint8_t table, uint8_t palette = 0xFF) const noexcept;

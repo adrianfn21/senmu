@@ -48,15 +48,30 @@ class GamePak {
      */
     [[nodiscard]] Image<Palette, 8, 8> getSprite(std::uint8_t tile, bool rightTable) const noexcept;
 
+  public:  // GamePak parameters
+    [[nodiscard]] constexpr iNES::NtMirroring getMirroring() const noexcept { return mirroring; }
+
   protected:
     // Program ROM
     std::vector<std::uint8_t> prgRom{};
 
-    // Character ROM
+    /**
+     * @brief Character ROM
+     *
+     * The Character ROM contains the sprites and the background tiles. Each tile is 8x8 pixels
+     * and is stored in a 16x16 pattern table. The pattern table is divided in two halves, each
+     * one containing 128 tiles. The left table contains the tiles from 0 to 127, while the right
+     * table contains the tiles from 128 to 255.
+     *
+     * @see https://www.nesdev.org/wiki/PPU_pattern_tables
+     */
     std::vector<std::uint8_t> chrRom{};
 
     // Mapper
     std::unique_ptr<Mapper> mapper{};
+
+    // Type of nametable mirroring
+    iNES::NtMirroring mirroring{};
 };
 
 }  // namespace NES

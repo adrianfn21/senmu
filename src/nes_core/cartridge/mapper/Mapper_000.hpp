@@ -21,14 +21,20 @@ class Mapper_000 : public Mapper {
         return addr & (nPrgRomBanks > 1 ? 0x7FFF : 0x3FFF);
     }
 
-    [[nodiscard]] std::uint32_t mapPrgRomWrite([[maybe_unused]] std::uint16_t addr) const noexcept override { assert(false && "PRG ROM write not supported"); }
+    [[nodiscard]] std::uint32_t mapPrgRomWrite([[maybe_unused]] std::uint16_t addr) const noexcept override {
+        assert(false && "PRG ROM write not supported");
+        return 0x00;
+    }
 
     [[nodiscard]] std::uint32_t mapChrRomRead(std::uint16_t addr) const noexcept override {
         // CHR ROM ranges from 0x0000 to 0x1FFF for the PPU
         return addr;
     }
 
-    [[nodiscard]] std::uint32_t mapChrRomWrite([[maybe_unused]] std::uint16_t addr) const noexcept override { assert(false && "CHR ROM write not supported"); }
+    [[nodiscard]] std::uint32_t mapChrRomWrite([[maybe_unused]] std::uint16_t addr) const noexcept override {
+        assert(false && "CHR ROM write not supported");
+        return 0x00;
+    }
 };
 
 }  // namespace NES

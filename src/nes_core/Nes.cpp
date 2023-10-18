@@ -3,7 +3,7 @@
 
 namespace NES {
 
-NesSystem::NesSystem(const iNES::iNES& rom) : gpak(rom), cpu(*this), ppu(*this) {
+NesSystem::NesSystem(const iNES::iNES& rom) : vram(rom.mirroring), gpak(rom), cpu(*this), ppu(*this) {
     reset();
 }
 
@@ -72,10 +72,14 @@ std::array<Color, 4> NesSystem::getPalette(std::uint8_t palette) const noexcept 
 }
 
 void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
+    // TODO: review
+    // See for reference: https://www.nesdev.org/wiki/CPU_memory_map
+
     if (addr >= CPU_RAM_START && addr <= CPU_RAM_END) {
         ram.write(addr, data);
 
     } else if (addr >= CPU_PPU_START && addr <= CPU_PPU_END) {
+        // Reference: https://www.nesdev.org/wiki/PPU_registers
         switch (addr) {
             case CPU_PPU_START:
                 ppu.controllerWrite(data);
@@ -84,13 +88,13 @@ void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
                 ppu.maskWrite(data);
                 break;
             case CPU_PPU_START + 2:
-                // TODO
+                // TODO Status
                 break;
             case CPU_PPU_START + 3:
-                // TODO
+                // TODO OAM Address
                 break;
             case CPU_PPU_START + 4:
-                // TODO
+                // TODO OAM Data
                 break;
             case CPU_PPU_START + 5:
                 ppu.scrollWrite(data);
@@ -114,10 +118,15 @@ void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
 }
 
 std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) noexcept {
+    // TODO: review
+    // See for reference: https://www.nesdev.org/wiki/CPU_memory_map
+
     if (addr >= CPU_RAM_START && addr <= CPU_RAM_END) {
         return ram.read(addr);
 
     } else if (addr >= CPU_PPU_START && addr <= CPU_PPU_END) {
+        // Reference: https://www.nesdev.org/wiki/PPU_registers
+
         switch (addr) {
             case CPU_PPU_START + 2:
                 return ppu.statusRead();
@@ -138,6 +147,9 @@ std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) noexcept {
 }
 
 void NesSystem::ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
+    // TODO: review
+    // See for reference: https://www.nesdev.org/wiki/PPU_memory_map
+
     if (addr >= PPU_PATTERN_TABLE_START && addr <= PPU_PATTERN_TABLE_END) {
         gpak.chrRomWrite(addr, data);
 
@@ -150,6 +162,9 @@ void NesSystem::ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
 }
 
 [[nodiscard]] std::uint8_t NesSystem::ppuBusRead(std::uint16_t addr) const noexcept {
+    // TODO: review
+    // See for reference: https://www.nesdev.org/wiki/PPU_memory_map
+
     if (addr >= PPU_PATTERN_TABLE_START && addr <= PPU_PATTERN_TABLE_END) {
         return gpak.chrRomRead(addr);
 

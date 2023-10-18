@@ -7,6 +7,14 @@
 namespace iNES {
 
 /**
+ * @brief Nametable Mirroring type
+ *
+ * This enum represents the getMirroring type of the ROM.
+ * It is used to determine the nametable getMirroring type of the PPU.
+ */
+enum NtMirroring { HORIZONTAL = 0x0, VERTICAL = 0x1, FOUR_SCREEN = 0x02 };
+
+/**
  * @brief iNES format parser
  *
  * This module reads a ROM file in iNES format and parses it.
@@ -43,7 +51,10 @@ class iNES {
     std::vector<std::uint8_t> playchoiceProm;
     std::string title;
 
-    [[nodiscard]] constexpr std::uint8_t mapperNumber() const { return (header.flags7 & 0xF0) | (header.flags6 >> 4); }
+    /* Extracted fields from data */
+    std::uint8_t mapperNumber;
+
+    NtMirroring mirroring;
 
   private:
     /* iNES format constants sizes */

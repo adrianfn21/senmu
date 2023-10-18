@@ -4,7 +4,7 @@
 namespace NES {
 
 GamePak::GamePak(const iNES::iNES& rom) : prgRom(rom.prgRom), chrRom(rom.chrRom) {
-    switch (rom.mapperNumber()) {
+    switch (rom.mapperNumber) {
         case 0:
             mapper = std::make_unique<Mapper_000>(rom.header.nPrgRomBanks, rom.header.nChrRomBanks);
             break;
@@ -13,6 +13,7 @@ GamePak::GamePak(const iNES::iNES& rom) : prgRom(rom.prgRom), chrRom(rom.chrRom)
     }
 
     // TODO: configure the rest of the parameters
+    mirroring = rom.mirroring;
 }
 
 void GamePak::prgRomWrite(std::uint16_t addr, std::uint8_t data) noexcept {
