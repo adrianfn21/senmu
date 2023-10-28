@@ -67,12 +67,12 @@ class MOS6502 {
     /**
      * @brief Returns the number of cycles executed.
      */
-    [[nodiscard]] constexpr uint64_t getCycles() const { return cyclesCounter; }
+    [[nodiscard]] constexpr std::uint64_t getCycles() const { return cyclesCounter; }
 
     /**
      * @brief Returns the number of instructions executed.
      */
-    [[nodiscard]] constexpr uint64_t getInstructions() const { return instructionsCounter; }
+    [[nodiscard]] constexpr std::uint64_t getInstructions() const { return instructionsCounter; }
 
     /**
      * @brief Resets the CPU.
@@ -113,8 +113,8 @@ class MOS6502 {
     static constexpr std::uint16_t STACK_PAGE = 0x0100;
 
     /* Statistics */
-    uint64_t cyclesCounter{};        // Number of cycles executed
-    uint64_t instructionsCounter{};  // Number of instructions executed
+    std::uint64_t cyclesCounter{};        // Number of cycles executed
+    std::uint64_t instructionsCounter{};  // Number of instructions executed
 
     /* CPU Registers */
     std::uint16_t r_PC{};  // Program Counter

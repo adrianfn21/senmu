@@ -61,8 +61,8 @@ Image<Palette, 8, 8> GamePak::getSprite(std::uint8_t tile, bool rightTable) cons
     for (size_t i = 0; i < TILE_SIZE; i++) {
         // Read a row of the tile
         size_t addr = tile_addr + i;
-        std::uint8_t tileLsb = chrRomRead(static_cast<uint16_t>(addr));
-        std::uint8_t tileMsb = chrRomRead(static_cast<uint16_t>(addr + TILE_BYTES / 2));
+        std::uint8_t tileLsb = chrRomRead(static_cast<std::uint16_t>(addr));
+        std::uint8_t tileMsb = chrRomRead(static_cast<std::uint16_t>(addr + TILE_BYTES / 2));
 
         for (size_t j = 0; j < TILE_SIZE; j++) {
             // Read a pixel of each row of the tile

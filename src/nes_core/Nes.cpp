@@ -47,11 +47,11 @@ std::uint16_t NesSystem::getPC() const noexcept {
     return cpu.getPC();
 }
 
-uint64_t NesSystem::getCycles() const noexcept {
+std::uint64_t NesSystem::getCycles() const noexcept {
     return cpu.getCycles();
 }
 
-uint64_t NesSystem::getInstructions() const noexcept {
+std::uint64_t NesSystem::getInstructions() const noexcept {
     return cpu.getInstructions();
 }
 
@@ -60,7 +60,7 @@ Image<Palette, 8, 8> NesSystem::getSprite(std::uint8_t tile, bool rightTable) co
 }
 
 Image<Palette, 8, 8> NesSystem::getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept {
-    return getSprite(static_cast<uint8_t>(tileI * 16 + tileJ), rightTable);
+    return getSprite(static_cast<std::uint8_t>(tileI * 16 + tileJ), rightTable);
 }
 
 Color NesSystem::getColor(std::uint8_t palette, std::uint8_t color) const noexcept {

@@ -74,8 +74,8 @@ class PaletteRam : private Ram<0x20> {
      * @return Color
      */
     [[nodiscard]] constexpr Color getColor(std::uint8_t palette, std::uint8_t color) const noexcept {
-        constexpr uint8_t PALETTE_SIZE = 4;
-        const uint8_t colorValue = PaletteRam::read(static_cast<uint16_t>((palette * PALETTE_SIZE) + (color & (PALETTE_SIZE - 1))));
+        constexpr std::uint8_t PALETTE_SIZE = 4;
+        const std::uint8_t colorValue = PaletteRam::read(static_cast<std::uint16_t>((palette * PALETTE_SIZE) + (color & (PALETTE_SIZE - 1))));
         return NTSC_PALETTE[colorValue & (NTSC_PALETTE.size() - 1)];
     }
 

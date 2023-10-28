@@ -75,7 +75,7 @@ class VRam : private Ram<2 * 1024> {
      * @see https://www.nesdev.org/wiki/Mirroring
      */
     [[nodiscard]] constexpr std::uint16_t mirror(std::uint16_t addr) const noexcept {
-        return static_cast<uint16_t>(
+        return static_cast<std::uint16_t>(
             // Remove nametable index bits
             (addr & ~(0x0800 | 0x0400)) |
             // Add nametable index bits depending on mirroring type

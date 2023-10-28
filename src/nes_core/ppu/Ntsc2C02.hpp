@@ -124,21 +124,21 @@ class NTSC2C02 {
     [[nodiscard]] Image<Color, 256, 240> renderBackground() const noexcept;
 
     [[nodiscard]] Image<Color, 256, 240> renderNametable1() const noexcept;
-    
+
     [[nodiscard]] Image<Color, 256, 240> renderNametable2() const noexcept;
 
     [[nodiscard]] Image<Color, 256, 240> renderForeground() const noexcept;
 
-    [[nodiscard]] Image<Color, 128, 128> renderPatternTable(uint8_t table, uint8_t palette = 0xFF) const noexcept;
+    [[nodiscard]] Image<Color, 128, 128> renderPatternTable(std::uint8_t table, std::uint8_t palette = 0xFF) const noexcept;
 
   private:
     /* Counters */
     int cycles = 0;
     int scanline = 0;
     bool frameCompleted = false;
+    int frameCounter = 0;
 
     /* Helper variables */
-    bool waitingLowByte = false;
     std::uint8_t dataBuffer = 0;
 
     /* Memory */
@@ -156,20 +156,20 @@ class NTSC2C02 {
         GenerateNMI = 7,      // Generate an NMI at the start of the vertical blanking interval  (0: off; 1: on)
     };
 
-    std::bitset<8> r_PPUCTRL;  // PPU Control Register
+    std::bitset<8> r_PPUCTRL;  // PPU Control Register ($2000)
 
     enum MaskFlags {
-        Grayscale = 0,   // Greyscale display  (0: normal color, 1: produce a greyscale display)
-        BgLeftmost = 1,  // Background left column enable  (0: hide, 1: show)
-        SpLeftmost = 2,  // Sprite left column enable  (0: hide, 1: show)
-        Background = 3,  // Background enable  (0: hide, 1: show)
-        Sprite = 4,      // Sprite enable  (0: hide, 1: show)
-        Red = 5,         // Red emphasis  (0: normal color, 1: emphasized color)
-        Green = 6,       // Green emphasis  (0: normal color, 1: emphasized color)
-        Blue = 7,        // Blue emphasis  (0: normal color, 1: emphasized color)
+        Grayscale = 0,         // Greyscale display  (0: normal color, 1: produce a greyscale display)
+        BgLeftmost = 1,        // Background left column enable  (0: hide, 1: show)
+        SpLeftmost = 2,        // Sprite left column enable  (0: hide, 1: show)
+        RenderBackground = 3,  // Background enable  (0: hide, 1: show)
+        RenderSprite = 4,      // Sprite enable  (0: hide, 1: show)
+        Red = 5,               // Red emphasis  (0: normal color, 1: emphasized color)
+        Green = 6,             // Green emphasis  (0: normal color, 1: emphasized color)
+        Blue = 7,              // Blue emphasis  (0: normal color, 1: emphasized color)
     };
 
-    std::bitset<8> r_PPUMASK;  // PPU Mask Register
+    std::bitset<8> r_PPUMASK;  // PPU Mask Register ($2001)
 
     enum StatusFlags {
         SpriteOverflow = 5,    // Sprite overflow  (0: less than eight, 1: eight or more sprites on current scanline)
@@ -177,11 +177,33 @@ class NTSC2C02 {
         VerticalBlanking = 7,  // Vertical blanking  (0: not in vblank; 1: in vblank)
     };
 
-    std::bitset<8> r_PPUSTATUS;  // PPU Status Register
+    std::bitset<8> r_PPUSTATUS;  // PPU Status Register ($2002)
 
-    uint16_t r_PPUSCROLL;  // PPU Scroll Register
-    uint16_t r_PPUADDR;    // PPU Address Register
-    uint8_t r_PPUDATA;     // PPU Data Register
+    /* The PPU uses two registers to handle scrolling: r_PPUADDR and r_TMPADDR.
+     * Both use the same enconding to store the scroll information, defined as follows:
+     *
+     *     yyy NN YYYYY XXXXX
+     *     ||| || ||||| +++++-- coarse X scroll (tile scroll inside nametable)
+     *     ||| || +++++-------- coarse Y scroll
+     *     ||| ++-------------- nametable select
+     *     +++----------------- fine Y scroll (pixel scroll inside tile)
+     *
+     * It also uses an extra register, r_fineX, to store the fine X scroll.
+     * However, in our scenario we are not looking for a cycle-level accurate emulation,
+     * so we can use some extra variables to store the scroll information individually.
+     *
+     * @see Scrolling reference: https://www.nesdev.org/wiki/PPU_scrolling
+     */
+
+    std::uint16_t r_PPUADDR;     // PPU Address Register ($2006)
+    std::uint16_t r_TMPADDR;     // Temporary VRAM address (15 bits)
+    bool r_writeToggle = false;  // First or second write toggle (1 bit)
+
+    std::uint8_t r_coarseX;       // Coarse X scroll (5 bits)
+    std::uint8_t r_coarseY;       // Coarse Y scroll (5 bits)
+    std::uint8_t r_fineX;         // Fine X scroll (3 bits)
+    std::uint8_t r_fineY;         // Fine Y scroll (3 bits)
+    std::uint8_t r_nametableIdx;  // Nametable index (2 bits)
 };
 
 }  // namespace NES
