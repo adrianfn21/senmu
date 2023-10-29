@@ -6,6 +6,7 @@
 #include "cartridge/GamePak.hpp"
 #include "common/Image.hpp"
 #include "cpu/Mos6502.hpp"
+#include "input/NesController.hpp"
 #include "memory/PaletteRam.hpp"
 #include "memory/Ram.hpp"
 #include "memory/VRam.hpp"
@@ -51,6 +52,10 @@ class NesSystem {
 
     [[nodiscard]] Color getColor(std::uint8_t palette, std::uint8_t color) const noexcept;
     [[nodiscard]] std::array<Color, 4> getPalette(std::uint8_t palette) const noexcept;
+
+  public:  // input
+    void setButton(Controller controllerPort, Button button, bool pressed) noexcept;
+    bool waitingForInput(Controller controllerPort) const noexcept;
 
   public:
     void cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept;
@@ -110,6 +115,8 @@ class NesSystem {
     MOS6502 cpu;
     NTSC2C02 ppu;
 
+    NesController input;
+
     // Flags
     bool pendingNmi = false;
 
@@ -123,6 +130,8 @@ class NesSystem {
     static constexpr std::uint16_t CPU_PPU_END = 0x3FFF;
     static constexpr std::uint16_t CPU_APU_START = 0x4000;
     static constexpr std::uint16_t CPU_APU_END = 0x4017;
+    static constexpr std::uint16_t CPU_CONTROLLER1 = 0x4016;
+    static constexpr std::uint16_t CPU_CONTROLLER2 = 0x4017;
     static constexpr std::uint16_t CPU_CARTRIDGE_START = 0x8000;
     static constexpr std::uint16_t CPU_CARTRIDGE_END = 0xFFFF;
     static constexpr std::uint32_t MAXIMUM_ROM_SIZE = 0xFFFF + 1;

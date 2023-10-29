@@ -71,6 +71,14 @@ std::array<Color, 4> NesSystem::getPalette(std::uint8_t palette) const noexcept 
     return paletteRam.getPalette(palette);
 }
 
+void NesSystem::setButton(Controller controllerPort, Button button, bool pressed) noexcept {
+    input.setButton(controllerPort, button, pressed);
+}
+
+bool NesSystem::waitingForInput(Controller controllerPort) const noexcept {
+    return input.isReading(controllerPort);
+}
+
 void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
     // TODO: review
     // See for reference: https://www.nesdev.org/wiki/CPU_memory_map
@@ -108,9 +116,11 @@ void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
             default:
                 break;
         }
-
+    } else if (addr >= CPU_CONTROLLER1 && addr <= CPU_CONTROLLER2) {
+        input.write(static_cast<std::uint8_t>(addr), data);
     } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
         // TODO: write to APU
+        // TODO: take care, same address as controller
 
     } else if (addr >= CPU_CARTRIDGE_START && addr <= CPU_CARTRIDGE_END) {
         gpak.prgRomWrite(addr, data);
@@ -135,7 +145,8 @@ std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) noexcept {
             default:
                 break;
         }
-
+    } else if (addr >= CPU_CONTROLLER1 && addr <= CPU_CONTROLLER2) {
+        return input.read(addr);
     } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
         // TODO: read from APU
 

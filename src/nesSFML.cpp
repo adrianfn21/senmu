@@ -20,12 +20,12 @@ int main(int argc, char** argv) {
     constexpr size_t PATTERNS_SIZE = 128;
     constexpr size_t SCALE_FACTOR = 2;
 
-    sf::RenderWindow bgWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "NES Emulator");
+    sf::RenderWindow mainWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "NES Emulator");
     sf::RenderWindow nametableWindow1(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 1");
     sf::RenderWindow nametableWindow2(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 2");
     sf::RenderWindow patternWindow1(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 1");
     sf::RenderWindow patternWindow2(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 2");
-    bgWindow.setPosition(sf::Vector2i(0, 0));
+    mainWindow.setPosition(sf::Vector2i(0, 0));
     nametableWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 0));
     nametableWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR * 2, 0));
     patternWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 240 * SCALE_FACTOR));
@@ -33,10 +33,77 @@ int main(int argc, char** argv) {
 
     std::uint8_t selectedPalette = 0x00;
 
-    uint8_t selectedPalette = 0x00;
-
     while (patternWindow1.isOpen() && patternWindow2.isOpen() && nes.isRunning()) {
         sf::Event event{};
+        while (mainWindow.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                mainWindow.close();
+            }
+
+            // read controls
+            if (event.type == sf::Event::KeyPressed) {
+                if (nes.waitingForInput(NES::Controller::P1)) {
+                    switch (event.key.code) {
+                        case sf::Keyboard::X:
+                            nes.setButton(NES::Controller::P1, NES::Button::A, true);
+                            break;
+                        case sf::Keyboard::Z:
+                            nes.setButton(NES::Controller::P1, NES::Button::B, true);
+                            break;
+                        case sf::Keyboard::BackSpace:
+                            nes.setButton(NES::Controller::P1, NES::Button::SELECT, true);
+                            break;
+                        case sf::Keyboard::Enter:
+                            nes.setButton(NES::Controller::P1, NES::Button::START, true);
+                            break;
+                        case sf::Keyboard::Up:
+                            nes.setButton(NES::Controller::P1, NES::Button::UP, true);
+                            break;
+                        case sf::Keyboard::Down:
+                            nes.setButton(NES::Controller::P1, NES::Button::DOWN, true);
+                            break;
+                        case sf::Keyboard::Left:
+                            nes.setButton(NES::Controller::P1, NES::Button::LEFT, true);
+                            break;
+                        case sf::Keyboard::Right:
+                            nes.setButton(NES::Controller::P1, NES::Button::RIGHT, true);
+                            break;
+                        default:
+                            break;
+                    }
+                } else if (event.type == sf::Event::KeyReleased) {
+                    switch (event.key.code) {
+                        case sf::Keyboard::X:
+                            nes.setButton(NES::Controller::P1, NES::Button::A, false);
+                            break;
+                        case sf::Keyboard::Z:
+                            nes.setButton(NES::Controller::P1, NES::Button::B, false);
+                            break;
+                        case sf::Keyboard::BackSpace:
+                            nes.setButton(NES::Controller::P1, NES::Button::SELECT, false);
+                            break;
+                        case sf::Keyboard::Enter:
+                            nes.setButton(NES::Controller::P1, NES::Button::START, false);
+                            break;
+                        case sf::Keyboard::Up:
+                            nes.setButton(NES::Controller::P1, NES::Button::UP, false);
+                            break;
+                        case sf::Keyboard::Down:
+                            nes.setButton(NES::Controller::P1, NES::Button::DOWN, false);
+                            break;
+                        case sf::Keyboard::Left:
+                            nes.setButton(NES::Controller::P1, NES::Button::LEFT, false);
+                            break;
+                        case sf::Keyboard::Right:
+                            nes.setButton(NES::Controller::P1, NES::Button::RIGHT, false);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+
         while (patternWindow1.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
                 patternWindow1.close();
@@ -88,8 +155,8 @@ int main(int argc, char** argv) {
         patternWindow2.clear();
         display(patternWindow2, nes.ppu.renderPatternTable(1, selectedPalette));
 
-        bgWindow.clear();
-        display(bgWindow, nes.ppu.renderFrame());
+        mainWindow.clear();
+        display(mainWindow, nes.ppu.renderFrame());
 
         nametableWindow1.clear();
         display(nametableWindow1, nes.ppu.renderNametable1());
