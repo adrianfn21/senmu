@@ -35,7 +35,7 @@ void NesSystem::runUntilFrame() noexcept {
     } while (!ppu.isFrameCompleted());
 }
 
-bool NesSystem::isRunning() {
+bool NesSystem::isRunning() const {
     return cpu.getOpcode() != 0x00;
 }
 
@@ -73,10 +73,6 @@ std::array<Color, 4> NesSystem::getPalette(std::uint8_t palette) const noexcept 
 
 void NesSystem::setButton(Controller controllerPort, Button button, bool pressed) noexcept {
     input.setButton(controllerPort, button, pressed);
-}
-
-bool NesSystem::waitingForInput(Controller controllerPort) const noexcept {
-    return input.isReading(controllerPort);
 }
 
 void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
@@ -117,7 +113,7 @@ void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
                 break;
         }
     } else if (addr >= CPU_CONTROLLER1 && addr <= CPU_CONTROLLER2) {
-        input.write(static_cast<std::uint8_t>(addr), data);
+        input.write(static_cast<std::uint8_t>(addr & 0x01));
     } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
         // TODO: write to APU
         // TODO: take care, same address as controller
@@ -146,7 +142,7 @@ std::uint8_t NesSystem::cpuBusRead(std::uint16_t addr) noexcept {
                 break;
         }
     } else if (addr >= CPU_CONTROLLER1 && addr <= CPU_CONTROLLER2) {
-        return input.read(addr);
+        return input.read(addr & 0x01);
     } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
         // TODO: read from APU
 

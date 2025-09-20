@@ -42,64 +42,62 @@ int main(int argc, char** argv) {
 
             // read controls
             if (event.type == sf::Event::KeyPressed) {
-                if (nes.waitingForInput(NES::Controller::P1)) {
-                    switch (event.key.code) {
-                        case sf::Keyboard::X:
-                            nes.setButton(NES::Controller::P1, NES::Button::A, true);
-                            break;
-                        case sf::Keyboard::Z:
-                            nes.setButton(NES::Controller::P1, NES::Button::B, true);
-                            break;
-                        case sf::Keyboard::BackSpace:
-                            nes.setButton(NES::Controller::P1, NES::Button::SELECT, true);
-                            break;
-                        case sf::Keyboard::Enter:
-                            nes.setButton(NES::Controller::P1, NES::Button::START, true);
-                            break;
-                        case sf::Keyboard::Up:
-                            nes.setButton(NES::Controller::P1, NES::Button::UP, true);
-                            break;
-                        case sf::Keyboard::Down:
-                            nes.setButton(NES::Controller::P1, NES::Button::DOWN, true);
-                            break;
-                        case sf::Keyboard::Left:
-                            nes.setButton(NES::Controller::P1, NES::Button::LEFT, true);
-                            break;
-                        case sf::Keyboard::Right:
-                            nes.setButton(NES::Controller::P1, NES::Button::RIGHT, true);
-                            break;
-                        default:
-                            break;
-                    }
-                } else if (event.type == sf::Event::KeyReleased) {
-                    switch (event.key.code) {
-                        case sf::Keyboard::X:
-                            nes.setButton(NES::Controller::P1, NES::Button::A, false);
-                            break;
-                        case sf::Keyboard::Z:
-                            nes.setButton(NES::Controller::P1, NES::Button::B, false);
-                            break;
-                        case sf::Keyboard::BackSpace:
-                            nes.setButton(NES::Controller::P1, NES::Button::SELECT, false);
-                            break;
-                        case sf::Keyboard::Enter:
-                            nes.setButton(NES::Controller::P1, NES::Button::START, false);
-                            break;
-                        case sf::Keyboard::Up:
-                            nes.setButton(NES::Controller::P1, NES::Button::UP, false);
-                            break;
-                        case sf::Keyboard::Down:
-                            nes.setButton(NES::Controller::P1, NES::Button::DOWN, false);
-                            break;
-                        case sf::Keyboard::Left:
-                            nes.setButton(NES::Controller::P1, NES::Button::LEFT, false);
-                            break;
-                        case sf::Keyboard::Right:
-                            nes.setButton(NES::Controller::P1, NES::Button::RIGHT, false);
-                            break;
-                        default:
-                            break;
-                    }
+                switch (event.key.code) {
+                    case sf::Keyboard::X:
+                        nes.setButton(NES::Controller::P1, NES::Button::A, true);
+                        break;
+                    case sf::Keyboard::Z:
+                        nes.setButton(NES::Controller::P1, NES::Button::B, true);
+                        break;
+                    case sf::Keyboard::BackSpace:
+                        nes.setButton(NES::Controller::P1, NES::Button::SELECT, true);
+                        break;
+                    case sf::Keyboard::Enter:
+                        nes.setButton(NES::Controller::P1, NES::Button::START, true);
+                        break;
+                    case sf::Keyboard::Up:
+                        nes.setButton(NES::Controller::P1, NES::Button::UP, true);
+                        break;
+                    case sf::Keyboard::Down:
+                        nes.setButton(NES::Controller::P1, NES::Button::DOWN, true);
+                        break;
+                    case sf::Keyboard::Left:
+                        nes.setButton(NES::Controller::P1, NES::Button::LEFT, true);
+                        break;
+                    case sf::Keyboard::Right:
+                        nes.setButton(NES::Controller::P1, NES::Button::RIGHT, true);
+                        break;
+                    default:
+                        break;
+                }
+            } else if (event.type == sf::Event::KeyReleased) {
+                switch (event.key.code) {
+                    case sf::Keyboard::X:
+                        nes.setButton(NES::Controller::P1, NES::Button::A, false);
+                        break;
+                    case sf::Keyboard::Z:
+                        nes.setButton(NES::Controller::P1, NES::Button::B, false);
+                        break;
+                    case sf::Keyboard::BackSpace:
+                        nes.setButton(NES::Controller::P1, NES::Button::SELECT, false);
+                        break;
+                    case sf::Keyboard::Enter:
+                        nes.setButton(NES::Controller::P1, NES::Button::START, false);
+                        break;
+                    case sf::Keyboard::Up:
+                        nes.setButton(NES::Controller::P1, NES::Button::UP, false);
+                        break;
+                    case sf::Keyboard::Down:
+                        nes.setButton(NES::Controller::P1, NES::Button::DOWN, false);
+                        break;
+                    case sf::Keyboard::Left:
+                        nes.setButton(NES::Controller::P1, NES::Button::LEFT, false);
+                        break;
+                    case sf::Keyboard::Right:
+                        nes.setButton(NES::Controller::P1, NES::Button::RIGHT, false);
+                        break;
+                    default:
+                        break;
                 }
             }
         }

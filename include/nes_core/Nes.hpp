@@ -38,7 +38,7 @@ class NesSystem {
 
     void runUntilFrame() noexcept;
 
-    bool isRunning();
+    bool isRunning() const;
 
     void setPC(std::uint16_t pc) noexcept;
     [[nodiscard]] std::uint16_t getPC() const noexcept;
@@ -55,7 +55,6 @@ class NesSystem {
 
   public:  // input
     void setButton(Controller controllerPort, Button button, bool pressed) noexcept;
-    bool waitingForInput(Controller controllerPort) const noexcept;
 
   public:
     void cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept;
