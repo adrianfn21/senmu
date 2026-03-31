@@ -4,6 +4,7 @@
   "description": "A NES Emulator written in modern C++",
   "dependencies": [
     "catch2",
-    "sfml"
+    "sfml",
+    "argparse"
   ]
 }

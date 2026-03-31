@@ -3,7 +3,8 @@
 
 #include <bitset>
 #include "common/Image.hpp"
-#include "memory/Ram.hpp"
+#include "memory/PaletteRam.hpp"
+#include "memory/VRam.hpp"
 
 namespace NES {
 
@@ -68,6 +69,27 @@ class NTSC2C02 {
     std::uint8_t statusRead() noexcept;
 
     /**
+     * @brief Write to the OAM Address Register.
+     * @param data The data (address) to write.
+     */
+    void oamAddrWrite(std::uint8_t data) noexcept;
+
+    /**
+     * @brief Write to the OAM memory.
+     * @param data The data to write.
+     *
+     * The data will be written to the OAM address specified by the OAM Address Register.
+     */
+    void oamDataWrite(std::uint8_t data) noexcept;
+
+    /**
+     * @brief Read from the OAM memory.
+     * The data will be read from the OAM address specified by the OAM Address Register.
+     * @return The data read.
+     */
+    std::uint8_t oamDataRead() noexcept;
+
+    /**
      * @brief Write to the PPU Scroll Register.
      * @param data The data to write.
      *
@@ -111,6 +133,9 @@ class NTSC2C02 {
      */
     [[nodiscard]] std::uint8_t dataRead() noexcept;
 
+    void ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept;
+    [[nodiscard]] std::uint8_t ppuBusRead(std::uint16_t addr) const noexcept;
+
   public:
     /**
      * @brief Returns if the PPU is currently rendering the screen.
@@ -123,6 +148,8 @@ class NTSC2C02 {
 
     [[nodiscard]] Image<Color, 256, 240> renderBackground() const noexcept;
 
+    void renderForeground(Image<Color, 256, 240>& img) const noexcept;
+
     [[nodiscard]] Image<Color, 256, 240> renderNametable1() const noexcept;
 
     [[nodiscard]] Image<Color, 256, 240> renderNametable2() const noexcept;
@@ -130,6 +157,15 @@ class NTSC2C02 {
     [[nodiscard]] Image<Color, 256, 240> renderForeground() const noexcept;
 
     [[nodiscard]] Image<Color, 128, 128> renderPatternTable(std::uint8_t table, std::uint8_t palette = 0xFF) const noexcept;
+
+  public:  // Sprite getters
+    [[nodiscard]] Image<Palette, 8, 8> getSprite(std::uint8_t tile, bool rightTable) const noexcept;
+
+    [[nodiscard]] Image<Palette, 8, 8> getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept;
+
+    [[nodiscard]] Color getColor(std::uint8_t palette, std::uint8_t color) const noexcept;
+
+    [[nodiscard]] std::array<Color, 4> getPalette(std::uint8_t palette) const noexcept;
 
   private:
     /* Counters */
@@ -143,6 +179,43 @@ class NTSC2C02 {
 
     /* Memory */
     NesSystem& sys;
+
+    /**
+     * @brief Video RAM
+     *
+     * The NES has 2 KB of video RAM, which is used to store the nametables and the attribute
+     * tables. Each nametable uses 1 KB of memory. The memory is mirrored horizontally or
+     * vertically depending on the mirroring mode of the game.
+     *
+     * The nametables are used to store the tiles that will be rendered on the screen. Each
+     * tile is 8x8 pixels, and each nametable can store 30x32 tiles. The attribute tables
+     * are used to store the palette of each tile. Each tile uses 2 bits to store the palette
+     * index, so each attribute table can store 64 tiles.
+     *
+     * @see Memory mapping: https://www.nesdev.org/wiki/PPU_memory_map
+     * @see Nametables structure: https://www.nesdev.org/wiki/PPU_nametables
+     * @see Attribute table structure: https://www.nesdev.org/wiki/PPU_attribute_tables
+     * @see Mirroring modes of nametables: https://www.nesdev.org/wiki/Mirroring
+     */
+    VRam vram;
+
+    /**
+     * @brief Palette RAM
+     *
+     * The NES has 32 bytes of palette RAM, which is used to store the color palette of the
+     * tiles. Each palette has 4 colors, and each color uses 3 bytes to store the RGB values.
+     */
+    PaletteRam paletteRam;
+
+    /** Object Attribute Memory
+     * The NES has 256 bytes of OAM, which is used to store the attributes of the sprites. Each
+     * sprite uses 4 bytes to store its attributes: Y position, tile index, attributes and X position.
+     * The OAM is accessed through the OAMADDR and OAMDATA registers of the PPU. The OAM is also used
+     * for the DMA transfer, which allows to copy 256 bytes of memory from the CPU RAM to the OAM in a single operation.
+     * @see https://www.nesdev.org/wiki/PPU_OAM
+     */
+    Ram<256> oam;
+    std::uint8_t r_OAMADDR = 0;  // OAMADDR register, to keep track of the current address to read/write OAMDATA
 
     /* Registers */
     enum ControllerFlags {
@@ -204,6 +277,14 @@ class NTSC2C02 {
     std::uint8_t r_fineX;         // Fine X scroll (3 bits)
     std::uint8_t r_fineY;         // Fine Y scroll (3 bits)
     std::uint8_t r_nametableIdx;  // Nametable index (2 bits)
+
+    // Constants
+    static constexpr std::uint16_t PPU_PATTERN_TABLE_START = 0x0000;
+    static constexpr std::uint16_t PPU_PATTERN_TABLE_END = 0x1FFF;
+    static constexpr std::uint16_t PPU_NAME_TABLE_START = 0x2000;
+    static constexpr std::uint16_t PPU_NAME_TABLE_END = 0x2FFF;
+    static constexpr std::uint16_t PPU_PALETTE_START = 0x3F00;
+    static constexpr std::uint16_t PPU_PALETTE_END = 0x3FFF;
 };
 
 }  // namespace NES

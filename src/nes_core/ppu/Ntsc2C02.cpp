@@ -3,7 +3,7 @@
 
 namespace NES {
 
-NTSC2C02::NTSC2C02(NesSystem& nes) : sys(nes) {
+NTSC2C02::NTSC2C02(NesSystem& nes) : sys(nes), vram(sys.gpak.getMirroring()) {
     reset();
 }
 
@@ -89,6 +89,18 @@ std::uint8_t NTSC2C02::statusRead() noexcept {
     return status;  // adds some noise to the lower 5 bits
 }
 
+void NTSC2C02::oamAddrWrite(std::uint8_t data) noexcept {
+    r_OAMADDR = data;
+}
+
+void NTSC2C02::oamDataWrite(std::uint8_t data) noexcept {
+    oam.write(r_OAMADDR, data);
+}
+
+std::uint8_t NTSC2C02::oamDataRead() noexcept {
+    return oam.read(r_OAMADDR);
+}
+
 void NTSC2C02::scrollWrite(std::uint8_t data) noexcept {
     if (!r_writeToggle) {
         // t: ....... ...ABCDE <- d: ABCDE... (write coarse x)
@@ -129,15 +141,14 @@ void NTSC2C02::addressWrite(std::uint8_t data) noexcept {
 }
 
 void NTSC2C02::dataWrite(std::uint8_t data) noexcept {
-    sys.ppuBusWrite(r_PPUADDR, data);
-
+    ppuBusWrite(r_PPUADDR, data);
     r_PPUADDR += r_PPUCTRL[IncrementMode] ? static_cast<std::uint16_t>(32) : static_cast<std::uint16_t>(1);
 }
 
 std::uint8_t NTSC2C02::dataRead() noexcept {
     // Reads to CHR ROM / VRAM are delayed, so they are served from a buffer
     auto data = dataBuffer;
-    dataBuffer = sys.ppuBusRead(r_PPUADDR);  // TODO this can be optimized
+    dataBuffer = ppuBusRead(r_PPUADDR);  // TODO this can be optimized
 
     // For palette RAM this access is instantaneous
     if (r_PPUADDR >= 0x3F00) {
@@ -150,8 +161,47 @@ std::uint8_t NTSC2C02::dataRead() noexcept {
     return data;
 }
 
+void NTSC2C02::ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
+    // TODO: review
+    // See for reference: https://www.nesdev.org/wiki/PPU_memory_map
+
+    if (addr >= PPU_PATTERN_TABLE_START && addr <= PPU_PATTERN_TABLE_END) {
+        sys.gpak.chrRomWrite(addr, data);
+
+    } else if (addr >= PPU_NAME_TABLE_START && addr <= PPU_NAME_TABLE_END) {
+        vram.write(addr, data);
+
+    } else if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
+        paletteRam.write(addr, data);
+    }
+}
+
+[[nodiscard]] std::uint8_t NTSC2C02::ppuBusRead(std::uint16_t addr) const noexcept {
+    // TODO: review
+    // See for reference: https://www.nesdev.org/wiki/PPU_memory_map
+
+    if (addr >= PPU_PATTERN_TABLE_START && addr <= PPU_PATTERN_TABLE_END) {
+        return sys.gpak.chrRomRead(addr);
+
+    } else if (addr >= PPU_NAME_TABLE_START && addr <= PPU_NAME_TABLE_END) {
+        return vram.read(addr);
+
+    } else if (addr >= PPU_PALETTE_START && addr <= PPU_PALETTE_END) {
+        return paletteRam.read(addr);
+    }
+    return 0x00;
+}
+
 Image<Color, 256, 240> NTSC2C02::renderFrame() const noexcept {
-    return renderBackground();
+    Image<Color, 256, 240> img{};
+
+    if (r_PPUMASK[RenderBackground])
+        img = renderBackground();
+
+    if (r_PPUMASK[RenderSprite])
+        renderForeground(img);
+
+    return img;
 }
 
 Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
@@ -160,10 +210,10 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
     Image<Color, 256, 240> bg;
 
     std::array<std::array<NES::Color, 4>, 4> bgPalette = {
-        sys.getPalette(0x00),
-        sys.getPalette(0x01),
-        sys.getPalette(0x02),
-        sys.getPalette(0x03),
+        getPalette(0x00),
+        getPalette(0x01),
+        getPalette(0x02),
+        getPalette(0x03),
     };
 
     // TODO review later
@@ -205,9 +255,9 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
             //            }
 
             int position = static_cast<int>(xy_nametable + new_y * 32 + new_x);
-            Image<Palette, 8, 8> sprite = sys.getSprite(sys.vram.read(static_cast<std::uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
+            Image<Palette, 8, 8> sprite = getSprite(vram.read(static_cast<std::uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
 
-            std::uint8_t attribute = sys.vram.read(static_cast<std::uint16_t>(xy_nametable + 32 * 30 + (new_y >> 2) * 8 + (new_x >> 2)));
+            std::uint8_t attribute = vram.read(static_cast<std::uint16_t>(xy_nametable + 32 * 30 + (new_y >> 2) * 8 + (new_x >> 2)));
             size_t palette = (attribute >> (((new_y & 0x02) + ((new_x & 0x02) >> 1)) * 2)) & 0x03;
 
             // TODO: add precision to fineX and fineY
@@ -222,15 +272,58 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
     return bg;
 }
 
+void NTSC2C02::renderForeground(Image<Color, 256, 240>& img) const noexcept {
+    std::array<std::array<NES::Color, 4>, 4> fgPalette = {
+        getPalette(0x04),
+        getPalette(0x05),
+        getPalette(0x06),
+        getPalette(0x07),
+    };
+
+    // Lower indexes have higher priority, so we render sprites from the end of OAM to the beginning
+    for (std::size_t i = 63; i <= 64; i--) {  // TODO: variable num of sprites?
+        std::uint8_t startY = oam.read(static_cast<std::uint16_t>(i * 4 + 0));
+        std::uint8_t tile = oam.read(static_cast<std::uint16_t>(i * 4 + 1));
+        std::uint8_t attr = oam.read(static_cast<std::uint16_t>(i * 4 + 2));
+        std::uint8_t startX = oam.read(static_cast<std::uint16_t>(i * 4 + 3));
+
+        // TODO: 8x16 mode not supported yet
+        if (r_PPUCTRL[Size])
+            assert(false && "8x16 sprites not supported yet");
+
+        // TODO: right table not supported
+        Image<Palette, 8, 8> sprite = getSprite(tile, false);
+        std::uint8_t palette = (attr & 0x03);  // TODO: take care, +0x04 was previously added
+
+        //        for (std::size_t y = 0; y < size_t(std::min(8, 230 - startY)); y++) {
+        //            for (std::size_t x = 0; x < size_t(std::min(8, 240 - startX)); x++) {
+        for (std::uint8_t y = 0; y < 8; y++) {
+            for (std::uint8_t x = 0; x < 8; x++) {
+                if (sprite[y][x] == 0)
+                    continue;  // palette 0 is transparent for sprites
+
+                // TODO: background priority
+
+                const std::uint16_t finalY = startY + (attr & 0x80 ? (7 - y) : y);  // vertical flip
+                const std::uint16_t finalX = startX + (attr & 0x40 ? (7 - x) : x);  // horizontal flip
+                if (finalY >= 240 || finalX >= 256)
+                    continue;  // sprite's pixel is out of screen vertically
+
+                img[finalY][finalX] = fgPalette[palette][sprite[y][x]];
+            }
+        }
+    }
+}
+
 // TODO: refactor this methods later
 Image<Color, 256, 240> NTSC2C02::renderNametable1() const noexcept {
     Image<Color, 256, 240> bg;
 
     std::array<std::array<NES::Color, 4>, 4> bgPalette = {
-        sys.getPalette(0x00),
-        sys.getPalette(0x01),
-        sys.getPalette(0x02),
-        sys.getPalette(0x03),
+        getPalette(0x00),
+        getPalette(0x01),
+        getPalette(0x02),
+        getPalette(0x03),
     };
 
     size_t nametable = 0x2000;
@@ -239,9 +332,9 @@ Image<Color, 256, 240> NTSC2C02::renderNametable1() const noexcept {
         for (size_t nt_x = 0; nt_x < 32; nt_x++) {
 
             int position = static_cast<int>(nametable + nt_y * 32 + nt_x);
-            Image<Palette, 8, 8> sprite = sys.getSprite(sys.vram.read(static_cast<std::uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
+            Image<Palette, 8, 8> sprite = getSprite(vram.read(static_cast<std::uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
 
-            std::uint8_t attribute = sys.vram.read(static_cast<std::uint16_t>(nametable + 32 * 30 + (nt_y >> 2) * 8 + (nt_x >> 2)));
+            std::uint8_t attribute = vram.read(static_cast<std::uint16_t>(nametable + 32 * 30 + (nt_y >> 2) * 8 + (nt_x >> 2)));
             size_t palette = (attribute >> (((nt_y & 0x02) + ((nt_x & 0x02) >> 1)) * 2)) & 0x03;
 
             for (size_t y = 0; y < 8; y++) {
@@ -259,10 +352,10 @@ Image<Color, 256, 240> NTSC2C02::renderNametable2() const noexcept {
     Image<Color, 256, 240> bg;
 
     std::array<std::array<NES::Color, 4>, 4> bgPalette = {
-        sys.getPalette(0x00),
-        sys.getPalette(0x01),
-        sys.getPalette(0x02),
-        sys.getPalette(0x03),
+        getPalette(0x00),
+        getPalette(0x01),
+        getPalette(0x02),
+        getPalette(0x03),
     };
 
     size_t nametable = 0x2C00;
@@ -271,9 +364,9 @@ Image<Color, 256, 240> NTSC2C02::renderNametable2() const noexcept {
         for (size_t nt_x = 0; nt_x < 32; nt_x++) {
 
             int position = static_cast<int>(nametable + nt_y * 32 + nt_x);
-            Image<Palette, 8, 8> sprite = sys.getSprite(sys.vram.read(static_cast<std::uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
+            Image<Palette, 8, 8> sprite = getSprite(vram.read(static_cast<std::uint16_t>(position)), r_PPUCTRL[BackgroundTable]);
 
-            std::uint8_t attribute = sys.vram.read(static_cast<std::uint16_t>(nametable + 32 * 30 + (nt_y >> 2) * 8 + (nt_x >> 2)));
+            std::uint8_t attribute = vram.read(static_cast<std::uint16_t>(nametable + 32 * 30 + (nt_y >> 2) * 8 + (nt_x >> 2)));
             size_t palette = (attribute >> (((nt_y & 0x02) + ((nt_x & 0x02) >> 1)) * 2)) & 0x03;
 
             for (size_t y = 0; y < 8; y++) {
@@ -289,10 +382,10 @@ Image<Color, 256, 240> NTSC2C02::renderNametable2() const noexcept {
 
 Image<Color, 256, 240> NTSC2C02::renderForeground() const noexcept {
     //    std::array<std::array<NES::Color, 4>, 4> fgPalette = {
-    //        sys.getPalette(0x04),
-    //        sys.getPalette(0x05),
-    //        sys.getPalette(0x06),
-    //        sys.getPalette(0x07),
+    //        getPalette(0x04),
+    //        getPalette(0x05),
+    //        getPalette(0x06),
+    //        getPalette(0x07),
     //    };
 
     // use r_PPUCTRL[BackgroundTable] to know which table use (0 for 0x0000, 1 for 0x1000)
@@ -308,12 +401,12 @@ Image<Color, 128, 128> NTSC2C02::renderPatternTable(std::uint8_t table, std::uin
     if (palette > 0x03) {
         // palette = nes.getPPU().getPalette();
     }
-    std::array<NES::Color, 4> colorPalette = sys.getPalette(palette);  // TODO get palette from PPU
+    std::array<NES::Color, 4> colorPalette = getPalette(palette);  // TODO get palette from PPU
 
     for (size_t tile_y = 0; tile_y < GRID_TILE_SIZE; tile_y++) {
         for (size_t tile_x = 0; tile_x < GRID_TILE_SIZE; tile_x++) {
 
-            Image<Palette, 8, 8> data = sys.getSprite(static_cast<std::uint8_t>(tile_y), static_cast<std::uint8_t>(tile_x), table);
+            Image<Palette, 8, 8> data = getSprite(static_cast<std::uint8_t>(tile_y), static_cast<std::uint8_t>(tile_x), table);
 
             for (size_t pixel_y = 0; pixel_y < TILE_SIZE; pixel_y++) {
                 for (size_t pixel_x = 0; pixel_x < TILE_SIZE; pixel_x++) {
@@ -325,6 +418,22 @@ Image<Color, 128, 128> NTSC2C02::renderPatternTable(std::uint8_t table, std::uin
     }
 
     return pattern;
+}
+
+Image<Palette, 8, 8> NTSC2C02::getSprite(std::uint8_t tile, bool rightTable) const noexcept {
+    return sys.gpak.getSprite(tile, rightTable);
+}
+
+Image<Palette, 8, 8> NTSC2C02::getSprite(std::uint8_t tileI, std::uint8_t tileJ, bool rightTable) const noexcept {
+    return getSprite(static_cast<std::uint8_t>(tileI * 16 + tileJ), rightTable);
+}
+
+Color NTSC2C02::getColor(std::uint8_t palette, std::uint8_t color) const noexcept {
+    return paletteRam.getColor(palette, color);
+}
+
+std::array<Color, 4> NTSC2C02::getPalette(std::uint8_t palette) const noexcept {
+    return paletteRam.getPalette(palette);
 }
 
 }  // namespace NES

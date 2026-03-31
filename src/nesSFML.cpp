@@ -1,26 +1,24 @@
 #include <SFML/Graphics.hpp>
-#include <iostream>
+#include <argparse/argparse.hpp>
+#include <chrono>
 #include <string>
 #include "ines/iNes.hpp"
 #include "nes_core/Nes.hpp"
 
 int main(int argc, char** argv) {
-    // args: [1] path to rom
+    argparse::ArgumentParser parser("senmu - A NES Emulator");
+    parser.add_argument("rom").help("Path to the ROM file to load").required();
+    parser.add_argument("--skip").help("Number of frames to run/skip before displaying the window (debug mode)").default_value(0).scan<'i', int>();
+    parser.parse_args(argc, argv);
 
-    if (argc != 2) {
-        std::cout << "Usage: " << argv[0] << " <path to rom>" << std::endl;
-        return 1;
-    }
-
-    const std::string GAME_PATH = argv[1];
-
-    iNES::iNES rom(GAME_PATH);
+    iNES::iNES rom(parser.get<std::string>("rom"));
     NES::NesSystem nes(rom);
 
     constexpr size_t PATTERNS_SIZE = 128;
     constexpr size_t SCALE_FACTOR = 2;
 
     sf::RenderWindow mainWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "NES Emulator");
+    mainWindow.setFramerateLimit(60);
     sf::RenderWindow nametableWindow1(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 1");
     sf::RenderWindow nametableWindow2(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 2");
     sf::RenderWindow patternWindow1(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 1");
@@ -33,7 +31,18 @@ int main(int argc, char** argv) {
 
     std::uint8_t selectedPalette = 0x00;
 
+    // Skip the first frames if specified in the arguments (debug mode)
+    for (int i = 0; i < parser.get<int>("skip"); i++) {
+        nes.runUntilFrame();
+    }
+
+    std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
     while (patternWindow1.isOpen() && patternWindow2.isOpen() && nes.isRunning()) {
+        std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
+        float fps = 1.0f / static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime).count()) * 1000.0f;
+        mainWindow.setTitle("NES Emulator - FPS: " + std::to_string(fps));
+        lastFrameTime = currentTime;
+
         sf::Event event{};
         while (mainWindow.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
