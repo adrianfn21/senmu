@@ -1,9 +1,53 @@
 #include <SFML/Graphics.hpp>
 #include <argparse/argparse.hpp>
+#include <array>
 #include <chrono>
+#include <cstddef>
 #include <string>
 #include "ines/iNes.hpp"
 #include "nes_core/Nes.hpp"
+
+namespace {
+
+constexpr std::size_t SCALE_FACTOR = 2;
+
+/**
+ * @brief Reusable canvas for displaying a NES image in an SFML window.
+ *
+ * The texture and sprite are created once and updated in place every frame.
+ * Allocating a new sf::Texture per frame is what tanked the frame rate.
+ */
+template <std::size_t Width, std::size_t Height>
+class WindowCanvas {
+  public:
+    WindowCanvas() {
+        texture.create(Width, Height);
+        sprite.setTexture(texture);
+        sprite.setScale(static_cast<float>(SCALE_FACTOR), static_cast<float>(SCALE_FACTOR));
+    }
+
+    void draw(sf::RenderWindow& window, const NES::Image<NES::Color, Width, Height>& img) {
+        for (std::size_t y = 0; y < Height; ++y) {
+            for (std::size_t x = 0; x < Width; ++x) {
+                const NES::Color& c = img[y][x];
+                sf::Uint8* pixel = &pixels[(y * Width + x) * 4];
+                pixel[0] = c.r;
+                pixel[1] = c.g;
+                pixel[2] = c.b;
+                pixel[3] = 0xFF;
+            }
+        }
+        texture.update(pixels.data());
+        window.draw(sprite);
+    }
+
+  private:
+    sf::Texture texture;
+    sf::Sprite sprite;
+    std::array<sf::Uint8, Width * Height * 4> pixels{};
+};
+
+}  // namespace
 
 int main(int argc, char** argv) {
     argparse::ArgumentParser parser("senmu - A NES Emulator");
@@ -15,7 +59,6 @@ int main(int argc, char** argv) {
     NES::NesSystem nes(rom);
 
     constexpr size_t PATTERNS_SIZE = 128;
-    constexpr size_t SCALE_FACTOR = 2;
 
     sf::RenderWindow mainWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "NES Emulator");
     mainWindow.setFramerateLimit(60);
@@ -30,6 +73,12 @@ int main(int argc, char** argv) {
     patternWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR + PATTERNS_SIZE * SCALE_FACTOR, 240 * SCALE_FACTOR));
 
     std::uint8_t selectedPalette = 0x00;
+
+    WindowCanvas<256, 240> mainCanvas;
+    WindowCanvas<256, 240> nametableCanvas1;
+    WindowCanvas<256, 240> nametableCanvas2;
+    WindowCanvas<128, 128> patternCanvas1;
+    WindowCanvas<128, 128> patternCanvas2;
 
     // Skip the first frames if specified in the arguments (debug mode)
     for (int i = 0; i < parser.get<int>("skip"); i++) {
@@ -136,40 +185,17 @@ int main(int argc, char** argv) {
 
         nes.runUntilFrame();
 
-        auto display = []<size_t width, size_t height>(sf::RenderWindow& rw, const NES::Image<NES::Color, width, height>& img) {
-            sf::Image sfmlImage;
-            sfmlImage.create(width, height);
-
-            for (unsigned int y = 0; y < height; y++) {
-                for (unsigned int x = 0; x < width; x++) {
-                    sfmlImage.setPixel(x, y, sf::Color(img[y][x].r, img[y][x].g, img[y][x].b));
-                }
-            }
-
-            sf::Texture texture;
-            texture.loadFromImage(sfmlImage);
-            sf::Sprite sprite;
-            sprite.setTexture(texture);
-            sprite.setScale(SCALE_FACTOR, SCALE_FACTOR);
-
-            rw.draw(sprite);
-            rw.display();
+        auto present = [](sf::RenderWindow& window, auto& canvas, const auto& image) {
+            window.clear();
+            canvas.draw(window, image);
+            window.display();
         };
 
-        patternWindow1.clear();
-        display(patternWindow1, nes.ppu.renderPatternTable(0, selectedPalette));
-
-        patternWindow2.clear();
-        display(patternWindow2, nes.ppu.renderPatternTable(1, selectedPalette));
-
-        mainWindow.clear();
-        display(mainWindow, nes.ppu.renderFrame());
-
-        nametableWindow1.clear();
-        display(nametableWindow1, nes.ppu.renderNametable1());
-
-        nametableWindow2.clear();
-        display(nametableWindow2, nes.ppu.renderNametable2());
+        present(patternWindow1, patternCanvas1, nes.ppu.renderPatternTable(0, selectedPalette));
+        present(patternWindow2, patternCanvas2, nes.ppu.renderPatternTable(1, selectedPalette));
+        present(mainWindow, mainCanvas, nes.ppu.renderFrame());
+        present(nametableWindow1, nametableCanvas1, nes.ppu.renderNametable1());
+        present(nametableWindow2, nametableCanvas2, nes.ppu.renderNametable2());
     }
 
     return 0;
