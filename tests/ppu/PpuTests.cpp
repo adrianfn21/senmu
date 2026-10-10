@@ -100,3 +100,48 @@ TEST_CASE_METHOD(PpuFixture, "VRAM applies nametable mirroring", "[ppu]") {
     REQUIRE(horizontal.read(0x2400) == 0x42);  // same nametable
     REQUIRE(horizontal.read(0x2800) == 0x00);  // other nametable
 }
+
+TEST_CASE_METHOD(PpuFixture, "Sprite zero hit is set while rendering and cleared at pre-render", "[ppu]") {
+    nes.cpuBusWrite(0x2001, 0x18);  // enable background + sprite rendering
+
+    // The hit is raised partway through the visible region.
+    bool hit = false;
+    for (int i = 0; i < 341 * 300 && !hit; i++) {
+        nes.ppu.cycle();
+        if (nes.cpuBusRead(0x2002) & 0x40) hit = true;
+    }
+    REQUIRE(hit);
+
+    // It is cleared at pre-render, so a full frame later it must be observed clear.
+    bool cleared = false;
+    for (int i = 0; i < 341 * 300 && !cleared; i++) {
+        nes.ppu.cycle();
+        if ((nes.cpuBusRead(0x2002) & 0x40) == 0) cleared = true;
+    }
+    REQUIRE(cleared);
+}
+
+TEST_CASE_METHOD(PpuFixture, "Sprite overflow is set with eight sprites on a scanline and cleared at pre-render", "[ppu]") {
+    nes.cpuBusWrite(0x2001, 0x10);  // enable sprite rendering
+
+    // Put eight sprites on the scanline the PPU uses for the (approximated) evaluation.
+    for (int i = 0; i < 8; i++) {
+        nes.cpuBusWrite(0x2003, static_cast<std::uint8_t>(i * 4));  // OAMADDR = sprite Y byte
+        nes.cpuBusWrite(0x2004, 30);
+    }
+
+    bool overflow = false;
+    for (int i = 0; i < 341 * 300 && !overflow; i++) {
+        nes.ppu.cycle();
+        if (nes.cpuBusRead(0x2002) & 0x20) overflow = true;
+    }
+    REQUIRE(overflow);
+
+    // It is cleared at pre-render, so a full frame later it must be observed clear.
+    bool cleared = false;
+    for (int i = 0; i < 341 * 300 && !cleared; i++) {
+        nes.ppu.cycle();
+        if ((nes.cpuBusRead(0x2002) & 0x20) == 0) cleared = true;
+    }
+    REQUIRE(cleared);
+}

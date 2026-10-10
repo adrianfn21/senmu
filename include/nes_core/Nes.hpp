@@ -43,7 +43,7 @@ class NesSystem {
 
     [[nodiscard]] std::uint64_t getCycles() const noexcept;
     [[nodiscard]] std::uint64_t getInstructions() const noexcept;
-    
+
   public:  // input
     void setButton(Controller controllerPort, Button button, bool pressed) noexcept;
 
@@ -76,6 +76,21 @@ class NesSystem {
     NTSC2C02 ppu;
 
     NesController input;
+
+    struct DMA {
+        std::uint8_t page = 0x00;  // Page to read from (high byte of the address)
+        std::uint8_t addr = 0x00;  // Address to write to in OAM (low byte of the address)
+        std::uint8_t data = 0x00;  // Data to write to OAM
+        bool transfer = false;     // Flag to indicate if a DMA transfer is in progress
+        bool dummy = true;         // Flag to indicate if a dummy read is needed (first cycle of the transfer)
+
+        void write(std::uint8_t dma_page) noexcept {
+            page = dma_page;
+            addr = 0x00;
+            data = 0x00;
+            transfer = true;
+        }
+    } dma;
 
     // Flags
     bool pendingNmi = false;
