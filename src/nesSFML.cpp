@@ -80,8 +80,41 @@ int main(int argc, char** argv) {
     sf::RenderWindow mainWindow(sf::VideoMode(SCREEN_WIDTH * PLAY_SCALE, SCREEN_HEIGHT * PLAY_SCALE), "NES Emulator");
     mainWindow.setFramerateLimit(60);
 
+    // Font for the on-screen controls help. Tries a few common system fonts;
+    // the text is simply skipped if none is found.
+    sf::Font controlsFont;
+    bool fontLoaded = false;
+    const char* fontCandidates[] = {
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+    };
+    for (const char* path : fontCandidates) {
+        if (controlsFont.loadFromFile(path)) {
+            fontLoaded = true;
+            break;
+        }
+    }
+
+    sf::Text controlsText;
+    if (fontLoaded) {
+        controlsText.setFont(controlsFont);
+        controlsText.setCharacterSize(11);
+        controlsText.setFillColor(sf::Color(200, 200, 200));
+        controlsText.setString(
+            "CONTROLS\n"
+            "X: A\n"
+            "Z: B\n"
+            "ENTER: START\n"
+            "BKSP: SELECT\n"
+            "ARROW: D-PAD\n"
+            "TAB: DEBUG\n"
+            "SPACE: PALETTE");
+    }
+
     std::uint8_t selectedPalette = 0x00;
-    Mode mode = Mode::Play;
+    Mode mode = Mode::Debug;
 
     // Play mode: just the game, scaled up. Debug mode: the screen at 2x on the
     // left, nametables at 1x stacked on the right, and the sprite tables at 1x
@@ -112,6 +145,9 @@ int main(int argc, char** argv) {
             nametable2View.place(ntX, NT_H, 1.f);
             pattern1View.place(patternX, 0.f, 1.f);
             pattern2View.place(patternX, PATTERN, 1.f);
+            // Controls help in the free bottom-right area below the sprite tables.
+            if (fontLoaded)
+                controlsText.setPosition(patternX + MARGIN, PATTERN * 2 + MARGIN);
         }
 
         mainWindow.setSize({windowWidth, windowHeight});
@@ -232,6 +268,8 @@ int main(int argc, char** argv) {
             mainWindow.draw(nametable2View.sprite());
             mainWindow.draw(pattern1View.sprite());
             mainWindow.draw(pattern2View.sprite());
+            if (fontLoaded)
+                mainWindow.draw(controlsText);
         }
 
         mainWindow.display();
