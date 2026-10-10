@@ -1,9 +1,66 @@
 #include <SFML/Graphics.hpp>
 #include <argparse/argparse.hpp>
+#include <array>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include "ines/iNes.hpp"
 #include "nes_core/Nes.hpp"
+
+namespace {
+
+constexpr unsigned PLAY_SCALE = 3;
+constexpr unsigned DEBUG_SCALE = 2;
+
+// Native sizes of the NES image buffers.
+constexpr unsigned SCREEN_WIDTH = 256;
+constexpr unsigned SCREEN_HEIGHT = 240;
+constexpr unsigned PATTERN_SIZE = 128;
+
+enum class Mode { Play, Debug };
+
+/**
+ * @brief Reusable texture for one NES image, updated in place every frame.
+ *
+ * Allocating a new sf::Texture per frame is what tanked the frame rate.
+ */
+template <std::size_t Width, std::size_t Height>
+class View {
+  public:
+    View() {
+        texture.create(Width, Height);
+        sprite_.setTexture(texture);
+    }
+
+    void update(const NES::Image<NES::Color, Width, Height>& img) {
+        for (std::size_t y = 0; y < Height; ++y) {
+            for (std::size_t x = 0; x < Width; ++x) {
+                const NES::Color& c = img[y][x];
+                sf::Uint8* pixel = &pixels[(y * Width + x) * 4];
+                pixel[0] = c.r;
+                pixel[1] = c.g;
+                pixel[2] = c.b;
+                pixel[3] = 0xFF;
+            }
+        }
+        texture.update(pixels.data());
+    }
+
+    void place(float x, float y, float scale) {
+        sprite_.setPosition(x, y);
+        sprite_.setScale(scale, scale);
+    }
+
+    [[nodiscard]] const sf::Sprite& sprite() const { return sprite_; }
+
+  private:
+    sf::Texture texture;
+    sf::Sprite sprite_;
+    std::array<sf::Uint8, Width * Height * 4> pixels{};
+};
+
+}  // namespace
 
 int main(int argc, char** argv) {
     argparse::ArgumentParser parser("senmu - A NES Emulator");
@@ -14,30 +71,101 @@ int main(int argc, char** argv) {
     iNES::iNES rom(parser.get<std::string>("rom"));
     NES::NesSystem nes(rom);
 
-    constexpr size_t PATTERNS_SIZE = 128;
-    constexpr size_t SCALE_FACTOR = 2;
+    View<SCREEN_WIDTH, SCREEN_HEIGHT> mainView;
+    View<SCREEN_WIDTH, SCREEN_HEIGHT> nametable1View;
+    View<SCREEN_WIDTH, SCREEN_HEIGHT> nametable2View;
+    View<PATTERN_SIZE, PATTERN_SIZE> pattern1View;
+    View<PATTERN_SIZE, PATTERN_SIZE> pattern2View;
 
-    sf::RenderWindow mainWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "NES Emulator");
+    sf::RenderWindow mainWindow(sf::VideoMode(SCREEN_WIDTH * PLAY_SCALE, SCREEN_HEIGHT * PLAY_SCALE), "NES Emulator");
     mainWindow.setFramerateLimit(60);
-    sf::RenderWindow nametableWindow1(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 1");
-    sf::RenderWindow nametableWindow2(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 2");
-    sf::RenderWindow patternWindow1(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 1");
-    sf::RenderWindow patternWindow2(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 2");
-    mainWindow.setPosition(sf::Vector2i(0, 0));
-    nametableWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 0));
-    nametableWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR * 2, 0));
-    patternWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 240 * SCALE_FACTOR));
-    patternWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR + PATTERNS_SIZE * SCALE_FACTOR, 240 * SCALE_FACTOR));
+
+    // Font for the on-screen controls help. Tries a few common system fonts;
+    // the text is simply skipped if none is found.
+    sf::Font controlsFont;
+    bool fontLoaded = false;
+    const char* fontCandidates[] = {
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+    };
+    for (const char* path : fontCandidates) {
+        if (controlsFont.loadFromFile(path)) {
+            fontLoaded = true;
+            break;
+        }
+    }
+
+    sf::Text controlsText;
+    if (fontLoaded) {
+        controlsText.setFont(controlsFont);
+        controlsText.setCharacterSize(11);
+        controlsText.setFillColor(sf::Color(200, 200, 200));
+        controlsText.setString(
+            "CONTROLS\n"
+            "X: A\n"
+            "Z: B\n"
+            "ENTER: START\n"
+            "BKSP: SELECT\n"
+            "ARROW: D-PAD\n"
+            "TAB: DEBUG\n"
+            "SPACE: PALETTE");
+    }
 
     std::uint8_t selectedPalette = 0x00;
+    Mode mode = Mode::Debug;
+
+    // Play mode: just the game, scaled up. Debug mode: the screen at 2x on the
+    // left, nametables at 1x stacked on the right, and the sprite tables at 1x
+    // stacked to the right of the nametables. A small margin separates sections.
+    auto applyLayout = [&] {
+        constexpr float MARGIN = 8.f;
+        unsigned windowWidth;
+        unsigned windowHeight;
+
+        if (mode == Mode::Play) {
+            windowWidth = SCREEN_WIDTH * PLAY_SCALE;
+            windowHeight = SCREEN_HEIGHT * PLAY_SCALE;
+            mainView.place(0.f, 0.f, static_cast<float>(PLAY_SCALE));
+        } else {
+            constexpr float SCREEN_W = SCREEN_WIDTH * DEBUG_SCALE;
+            constexpr float SCREEN_H = SCREEN_HEIGHT * DEBUG_SCALE;
+            constexpr float NT_W = SCREEN_WIDTH;
+            constexpr float NT_H = SCREEN_HEIGHT;
+            constexpr float PATTERN = PATTERN_SIZE;
+
+            const float ntX = SCREEN_W + MARGIN;
+            const float patternX = ntX + NT_W + MARGIN;
+
+            windowWidth = static_cast<unsigned>(patternX + PATTERN);
+            windowHeight = static_cast<unsigned>(SCREEN_H);
+            mainView.place(0.f, 0.f, static_cast<float>(DEBUG_SCALE));
+            nametable1View.place(ntX, 0.f, 1.f);
+            nametable2View.place(ntX, NT_H, 1.f);
+            pattern1View.place(patternX, 0.f, 1.f);
+            pattern2View.place(patternX, PATTERN, 1.f);
+            // Controls help in the free bottom-right area below the sprite tables.
+            if (fontLoaded)
+                controlsText.setPosition(patternX + MARGIN, PATTERN * 2 + MARGIN);
+        }
+
+        mainWindow.setSize({windowWidth, windowHeight});
+        // Resizing does not update the view, so without this the sprites are
+        // drawn into the previous view rectangle and appear squashed/shifted.
+        mainWindow.setView(sf::View(sf::FloatRect(0.f, 0.f, static_cast<float>(windowWidth), static_cast<float>(windowHeight))));
+    };
 
     // Skip the first frames if specified in the arguments (debug mode)
     for (int i = 0; i < parser.get<int>("skip"); i++) {
         nes.runUntilFrame();
     }
 
+    applyLayout();
+
+    bool tabHeld = false;
     std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
-    while (patternWindow1.isOpen() && patternWindow2.isOpen() && nes.isRunning()) {
+    while (mainWindow.isOpen() && nes.isRunning()) {
         std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
         float fps = 1.0f / static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime).count()) * 1000.0f;
         mainWindow.setTitle("NES Emulator - FPS: " + std::to_string(fps));
@@ -52,6 +180,17 @@ int main(int argc, char** argv) {
             // read controls
             if (event.type == sf::Event::KeyPressed) {
                 switch (event.key.code) {
+                    case sf::Keyboard::Tab:
+                        // Ignore auto-repeat, otherwise the mode would flicker.
+                        if (!tabHeld) {
+                            tabHeld = true;
+                            mode = mode == Mode::Play ? Mode::Debug : Mode::Play;
+                            applyLayout();
+                        }
+                        break;
+                    case sf::Keyboard::Space:
+                        selectedPalette = static_cast<std::uint8_t>((selectedPalette + 1) % 0x08);
+                        break;
                     case sf::Keyboard::X:
                         nes.setButton(NES::Controller::P1, NES::Button::A, true);
                         break;
@@ -81,6 +220,9 @@ int main(int argc, char** argv) {
                 }
             } else if (event.type == sf::Event::KeyReleased) {
                 switch (event.key.code) {
+                    case sf::Keyboard::Tab:
+                        tabHeld = false;
+                        break;
                     case sf::Keyboard::X:
                         nes.setButton(NES::Controller::P1, NES::Button::A, false);
                         break;
@@ -111,65 +253,26 @@ int main(int argc, char** argv) {
             }
         }
 
-        while (patternWindow1.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
-                patternWindow1.close();
-            }
-
-            // space bar pressed
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
-                selectedPalette = static_cast<std::uint8_t>((selectedPalette + 1) % 0x08);
-                patternWindow1.setTitle("Sprites 1 - Palette: " + std::to_string(selectedPalette));
-            }
-        }
-        while (patternWindow2.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
-                patternWindow2.close();
-            }
-
-            // space bar pressed
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
-                selectedPalette = static_cast<std::uint8_t>((selectedPalette + 1) % 0x08);
-                patternWindow2.setTitle("Sprites 2 - Palette: " + std::to_string(selectedPalette));
-            }
-        }
-
         nes.runUntilFrame();
 
-        auto display = []<size_t width, size_t height>(sf::RenderWindow& rw, const NES::Image<NES::Color, width, height>& img) {
-            sf::Image sfmlImage;
-            sfmlImage.create(width, height);
-
-            for (unsigned int y = 0; y < height; y++) {
-                for (unsigned int x = 0; x < width; x++) {
-                    sfmlImage.setPixel(x, y, sf::Color(img[y][x].r, img[y][x].g, img[y][x].b));
-                }
-            }
-
-            sf::Texture texture;
-            texture.loadFromImage(sfmlImage);
-            sf::Sprite sprite;
-            sprite.setTexture(texture);
-            sprite.setScale(SCALE_FACTOR, SCALE_FACTOR);
-
-            rw.draw(sprite);
-            rw.display();
-        };
-
-        patternWindow1.clear();
-        display(patternWindow1, nes.ppu.renderPatternTable(0, selectedPalette));
-
-        patternWindow2.clear();
-        display(patternWindow2, nes.ppu.renderPatternTable(1, selectedPalette));
-
+        mainView.update(nes.ppu.renderFrame());
         mainWindow.clear();
-        display(mainWindow, nes.ppu.renderFrame());
+        mainWindow.draw(mainView.sprite());
 
-        nametableWindow1.clear();
-        display(nametableWindow1, nes.ppu.renderNametable1());
+        if (mode == Mode::Debug) {
+            nametable1View.update(nes.ppu.renderNametable1());
+            nametable2View.update(nes.ppu.renderNametable2());
+            pattern1View.update(nes.ppu.renderPatternTable(0, selectedPalette));
+            pattern2View.update(nes.ppu.renderPatternTable(1, selectedPalette));
+            mainWindow.draw(nametable1View.sprite());
+            mainWindow.draw(nametable2View.sprite());
+            mainWindow.draw(pattern1View.sprite());
+            mainWindow.draw(pattern2View.sprite());
+            if (fontLoaded)
+                mainWindow.draw(controlsText);
+        }
 
-        nametableWindow2.clear();
-        display(nametableWindow2, nes.ppu.renderNametable2());
+        mainWindow.display();
     }
 
     return 0;
