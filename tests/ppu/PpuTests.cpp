@@ -232,3 +232,35 @@ TEST_CASE_METHOD(PpuFixture, "Sprite priority bit hides sprites behind an opaque
     REQUIRE(!eq(inFront[2][0], bgOnly[2][0]));
     REQUIRE(eq(behind[2][0], bgOnly[2][0]));
 }
+
+TEST_CASE_METHOD(PpuFixture, "Only the first 8 sprites render on a scanline", "[ppu]") {
+    const auto eq = [](NES::Color a, NES::Color b) { return a.r == b.r && a.g == b.g && a.b == b.b; };
+
+    // Distinct color for sprite palette 0 color 3 ($3F07), used by tile 4's pixel (2,0).
+    setPpuAddress(0x3F00);
+    for (std::uint8_t color : {0x0F, 0x21, 0x11, 0x30, 0x16, 0x27, 0x2A, 0x20}) nes.cpuBusWrite(0x2007, color);
+
+    const auto writeOam = [&](std::uint8_t addr, std::uint8_t data) {
+        nes.cpuBusWrite(0x2003, addr);
+        nes.cpuBusWrite(0x2004, data);
+    };
+
+    // 9 sprites on scanlines 0-7, spaced 8 pixels apart so they don't overlap.
+    for (std::uint8_t i = 0; i < 9; i++) {
+        writeOam(static_cast<std::uint8_t>(i * 4 + 0), 0x00);         // Y = 0
+        writeOam(static_cast<std::uint8_t>(i * 4 + 1), 0x04);         // tile = 4
+        writeOam(static_cast<std::uint8_t>(i * 4 + 2), 0x00);         // attributes = 0
+        writeOam(static_cast<std::uint8_t>(i * 4 + 3), i * 8);        // X = i * 8
+    }
+
+    nes.cpuBusWrite(0x2000, 0x00);
+    nes.cpuBusWrite(0x2001, 0x10);  // sprites only, background stays black
+    const auto img = nes.ppu.renderFrame();
+
+    const NES::Color backdrop{0, 0, 0};
+
+    // The first 8 sprites (X = 0..56) are drawn at pixel (2, X); the 9th (X = 64) is not.
+    REQUIRE(!eq(img[2][0], backdrop));
+    REQUIRE(!eq(img[2][56], backdrop));
+    REQUIRE(eq(img[2][64], backdrop));
+}

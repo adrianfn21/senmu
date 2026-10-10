@@ -311,6 +311,19 @@ void NTSC2C02::renderForeground(Image<Color, 256, 240>& img, const BackgroundMas
         getPalette(0x07),
     };
 
+    // Only the first 8 sprites (in OAM order) are drawn on each scanline.
+    std::array<std::array<bool, 64>, 240> onScanline{};
+    for (std::size_t line = 0; line < 240; line++) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < 64 && count < 8; i++) {
+            const std::uint8_t startY = oam.read(static_cast<std::uint16_t>(i * 4 + 0));
+            if (line >= startY && line < static_cast<std::size_t>(startY) + 8) {
+                onScanline[line][i] = true;
+                count++;
+            }
+        }
+    }
+
     // Lower indexes have higher priority, so we render sprites from the end of OAM to the beginning
     for (std::size_t i = 63; i <= 64; i--) {  // TODO: variable num of sprites?
         std::uint8_t startY = oam.read(static_cast<std::uint16_t>(i * 4 + 0));
@@ -337,6 +350,9 @@ void NTSC2C02::renderForeground(Image<Color, 256, 240>& img, const BackgroundMas
                 const std::uint16_t finalX = startX + (attr & 0x40 ? (7 - x) : x);  // horizontal flip
                 if (finalY >= 240 || finalX >= 256)
                     continue;  // sprite's pixel is out of screen vertically
+
+                if (!onScanline[finalY][i])
+                    continue;  // this sprite is beyond the 8-sprite limit for the scanline
 
                 // Bit 5 of the attributes puts the sprite behind the background: hide it
                 // where the background has an opaque pixel.
