@@ -24,6 +24,14 @@ void NTSC2C02::cycle() {
         scanline++;
 
         switch (scanline) {
+            case 30:
+                // sprite 0 hit: not cycle-accurate, we just set it once if rendering is enabled
+                // shortcut: fixed scanline instead of the real overlap, upgrade if needed
+                if (r_PPUMASK[RenderBackground] && r_PPUMASK[RenderSprite]) {
+                    r_PPUSTATUS[SpriteZero] = true;
+                }
+                break;
+
             case 241:
                 r_PPUSTATUS[VerticalBlanking] = true;
                 if (r_PPUCTRL[GenerateNMI]) {
@@ -36,7 +44,7 @@ void NTSC2C02::cycle() {
                 frameCompleted = true;
                 frameCounter++;
                 r_PPUSTATUS[VerticalBlanking] = false;
-                // TODO sprite 0
+                r_PPUSTATUS[SpriteZero] = false;  // cleared during pre-render
                 // TODO overflow
                 break;
         }
