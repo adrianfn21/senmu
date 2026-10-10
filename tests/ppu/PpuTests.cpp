@@ -191,3 +191,44 @@ TEST_CASE_METHOD(PpuFixture, "Background applies fine X and Y scroll", "[ppu]") 
     REQUIRE(mismatchY == 0);
     REQUIRE(diffY > 0);
 }
+
+TEST_CASE_METHOD(PpuFixture, "Sprite priority bit hides sprites behind an opaque background", "[ppu]") {
+    const auto eq = [](NES::Color a, NES::Color b) { return a.r == b.r && a.g == b.g && a.b == b.b; };
+
+    // Distinct colors for background palette 0 ($3F00-$3F03) and sprite palette 0 ($3F04-$3F07).
+    setPpuAddress(0x3F00);
+    for (std::uint8_t color : {0x0F, 0x21, 0x11, 0x30, 0x16, 0x27, 0x2A, 0x20}) nes.cpuBusWrite(0x2007, color);
+
+    // Fill the background with tile 2: transparent at (0,7), opaque at (2,0).
+    setPpuAddress(0x2000);
+    for (int i = 0; i < 32 * 30; i++) nes.cpuBusWrite(0x2007, 0x02);
+
+    // Sprite 0 uses tile 4 (opaque at both (0,7) and (2,0)), at screen position (0,0).
+    const auto writeOam = [&](std::uint8_t addr, std::uint8_t data) {
+        nes.cpuBusWrite(0x2003, addr);
+        nes.cpuBusWrite(0x2004, data);
+    };
+    writeOam(0x00, 0x00);  // Y = 0
+    writeOam(0x01, 0x04);  // tile = 4
+    writeOam(0x02, 0x00);  // attributes = 0 (in front of background)
+    writeOam(0x03, 0x00);  // X = 0
+
+    nes.cpuBusWrite(0x2000, 0x00);  // background pattern table $0000, nametable 0
+
+    nes.cpuBusWrite(0x2001, 0x08);  // background only
+    const auto bgOnly = nes.ppu.renderFrame();
+
+    nes.cpuBusWrite(0x2001, 0x18);  // background + sprites, sprite in front
+    const auto inFront = nes.ppu.renderFrame();
+
+    writeOam(0x02, 0x20);  // set the background-priority bit
+    const auto behind = nes.ppu.renderFrame();
+
+    // (0,7): background transparent -> sprite is visible in front and behind
+    REQUIRE(!eq(inFront[0][7], bgOnly[0][7]));
+    REQUIRE(eq(behind[0][7], inFront[0][7]));
+
+    // (2,0): background opaque -> sprite is visible in front but hidden behind
+    REQUIRE(!eq(inFront[2][0], bgOnly[2][0]));
+    REQUIRE(eq(behind[2][0], bgOnly[2][0]));
+}

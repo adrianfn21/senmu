@@ -144,11 +144,17 @@ class NTSC2C02 {
     [[nodiscard]] constexpr bool isFrameCompleted() const noexcept { return frameCompleted; }
 
   public:
+    /**
+     * @brief Per-pixel background opacity, used to resolve sprite/background priority.
+     * True where the background has a non-transparent pixel.
+     */
+    using BackgroundMask = std::array<bool, 256 * 240>;
+
     [[nodiscard]] Image<Color, 256, 240> renderFrame() const noexcept;
 
-    [[nodiscard]] Image<Color, 256, 240> renderBackground() const noexcept;
+    [[nodiscard]] Image<Color, 256, 240> renderBackground(BackgroundMask* opaque = nullptr) const noexcept;
 
-    void renderForeground(Image<Color, 256, 240>& img) const noexcept;
+    void renderForeground(Image<Color, 256, 240>& img, const BackgroundMask* bgOpaque = nullptr) const noexcept;
 
     [[nodiscard]] Image<Color, 256, 240> renderNametable1() const noexcept;
 

@@ -215,17 +215,20 @@ void NTSC2C02::ppuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
 
 Image<Color, 256, 240> NTSC2C02::renderFrame() const noexcept {
     Image<Color, 256, 240> img{};
+    BackgroundMask bgOpaque{};
 
-    if (r_PPUMASK[RenderBackground])
-        img = renderBackground();
+    const bool background = r_PPUMASK[RenderBackground];
+
+    if (background)
+        img = renderBackground(&bgOpaque);
 
     if (r_PPUMASK[RenderSprite])
-        renderForeground(img);
+        renderForeground(img, background ? &bgOpaque : nullptr);
 
     return img;
 }
 
-Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
+Image<Color, 256, 240> NTSC2C02::renderBackground(BackgroundMask* opaque) const noexcept {
     // TODO: optimize later
 
     Image<Color, 256, 240> bg;
@@ -290,6 +293,8 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
                     if (screenX < 0 || screenX >= 256 || screenY < 0 || screenY >= 240)
                         continue;  // pixel falls outside the visible area
                     bg[static_cast<std::size_t>(screenY)][static_cast<std::size_t>(screenX)] = bgPalette[palette][sprite[y][x]];
+                    if (opaque != nullptr)
+                        (*opaque)[static_cast<std::size_t>(screenY) * 256 + static_cast<std::size_t>(screenX)] = sprite[y][x] != 0;
                 }
             }
         }
@@ -298,7 +303,7 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
     return bg;
 }
 
-void NTSC2C02::renderForeground(Image<Color, 256, 240>& img) const noexcept {
+void NTSC2C02::renderForeground(Image<Color, 256, 240>& img, const BackgroundMask* bgOpaque) const noexcept {
     std::array<std::array<NES::Color, 4>, 4> fgPalette = {
         getPalette(0x04),
         getPalette(0x05),
@@ -328,12 +333,15 @@ void NTSC2C02::renderForeground(Image<Color, 256, 240>& img) const noexcept {
                 if (sprite[y][x] == 0)
                     continue;  // palette 0 is transparent for sprites
 
-                // TODO: background priority
-
                 const std::uint16_t finalY = startY + (attr & 0x80 ? (7 - y) : y);  // vertical flip
                 const std::uint16_t finalX = startX + (attr & 0x40 ? (7 - x) : x);  // horizontal flip
                 if (finalY >= 240 || finalX >= 256)
                     continue;  // sprite's pixel is out of screen vertically
+
+                // Bit 5 of the attributes puts the sprite behind the background: hide it
+                // where the background has an opaque pixel.
+                if ((attr & 0x20) && bgOpaque != nullptr && (*bgOpaque)[static_cast<std::size_t>(finalY) * 256 + finalX])
+                    continue;
 
                 img[finalY][finalX] = fgPalette[palette][sprite[y][x]];
             }
