@@ -88,8 +88,12 @@ int main(int argc, char** argv) {
     // stacked to the right of the nametables. A small margin separates sections.
     auto applyLayout = [&] {
         constexpr float MARGIN = 8.f;
+        unsigned windowWidth;
+        unsigned windowHeight;
+
         if (mode == Mode::Play) {
-            mainWindow.setSize({SCREEN_WIDTH * PLAY_SCALE, SCREEN_HEIGHT * PLAY_SCALE});
+            windowWidth = SCREEN_WIDTH * PLAY_SCALE;
+            windowHeight = SCREEN_HEIGHT * PLAY_SCALE;
             mainView.place(0.f, 0.f, static_cast<float>(PLAY_SCALE));
         } else {
             constexpr float SCREEN_W = SCREEN_WIDTH * DEBUG_SCALE;
@@ -101,13 +105,19 @@ int main(int argc, char** argv) {
             const float ntX = SCREEN_W + MARGIN;
             const float patternX = ntX + NT_W + MARGIN;
 
-            mainWindow.setSize({static_cast<unsigned>(patternX + PATTERN), static_cast<unsigned>(SCREEN_H)});
+            windowWidth = static_cast<unsigned>(patternX + PATTERN);
+            windowHeight = static_cast<unsigned>(SCREEN_H);
             mainView.place(0.f, 0.f, static_cast<float>(DEBUG_SCALE));
             nametable1View.place(ntX, 0.f, 1.f);
             nametable2View.place(ntX, NT_H, 1.f);
             pattern1View.place(patternX, 0.f, 1.f);
             pattern2View.place(patternX, PATTERN, 1.f);
         }
+
+        mainWindow.setSize({windowWidth, windowHeight});
+        // Resizing does not update the view, so without this the sprites are
+        // drawn into the previous view rectangle and appear squashed/shifted.
+        mainWindow.setView(sf::View(sf::FloatRect(0.f, 0.f, static_cast<float>(windowWidth), static_cast<float>(windowHeight))));
     };
 
     // Skip the first frames if specified in the arguments (debug mode)
