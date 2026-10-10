@@ -291,6 +291,16 @@ class NTSC2C02 {
     std::uint8_t r_fineY;         // Fine Y scroll (3 bits)
     std::uint8_t r_nametableIdx;  // Nametable index (2 bits)
 
+    /* Scroll values latched at the end of the visible region, used for rendering.
+     * Games with a split screen (e.g. SMB) overwrite the scroll registers during
+     * vblank to draw the status bar, so the live values at the end of the frame are
+     * not the ones used to render the playfield. */
+    std::uint8_t r_renderCoarseX;
+    std::uint8_t r_renderCoarseY;
+    std::uint8_t r_renderFineX;
+    std::uint8_t r_renderFineY;
+    std::uint8_t r_renderNametableIdx;
+
     // Constants
     static constexpr std::uint16_t PPU_PATTERN_TABLE_START = 0x0000;
     static constexpr std::uint16_t PPU_PATTERN_TABLE_END = 0x1FFF;

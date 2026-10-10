@@ -52,6 +52,17 @@ void NTSC2C02::cycle() {
                 r_PPUSTATUS[SpriteOverflow] = false;  // cleared during pre-render
                 break;
         }
+
+        // Latch the scroll at the end of the visible region: a split screen (e.g. SMB) has
+        // already switched to the playfield scroll by now, but the status-bar scroll written
+        // during vblank would otherwise be the only value left at the end of the frame.
+        if (scanline == 240) {
+            r_renderCoarseX = r_coarseX;
+            r_renderCoarseY = r_coarseY;
+            r_renderFineX = r_fineX;
+            r_renderFineY = r_fineY;
+            r_renderNametableIdx = r_nametableIdx;
+        }
     }
 }
 
@@ -72,6 +83,11 @@ void NTSC2C02::reset() noexcept {
     r_fineX = 0;
     r_fineY = 0;
     r_nametableIdx = 0;
+    r_renderCoarseX = 0;
+    r_renderCoarseY = 0;
+    r_renderFineX = 0;
+    r_renderFineY = 0;
+    r_renderNametableIdx = 0;
     r_writeToggle = false;
 }
 
@@ -241,14 +257,14 @@ Image<Color, 256, 240> NTSC2C02::renderBackground(BackgroundMask* opaque) const 
     };
 
     // TODO review later
-    size_t original_nametable = static_cast<std::uint16_t>(0x2000 + (r_nametableIdx << 10));
+    size_t original_nametable = static_cast<std::uint16_t>(0x2000 + (r_renderNametableIdx << 10));
     // 0010 0000 0000 0000 - 0x2000
     // 0010 0100 0000 0000 - 0x2400
     // 0010 1000 0000 0000 - 0x2800
     // 0010 1100 0000 0000 - 0x2C00
 
     // The visible area needs an extra tile row/column to cover the fine-scroll offset.
-    for (size_t nt_y = static_cast<size_t>(r_coarseY); nt_y < 31 + static_cast<size_t>(r_coarseY); nt_y++) {
+    for (size_t nt_y = static_cast<size_t>(r_renderCoarseY); nt_y < 31 + static_cast<size_t>(r_renderCoarseY); nt_y++) {
         size_t y_nametable = original_nametable;
 
         if (nt_y >= 30) {
@@ -259,7 +275,7 @@ Image<Color, 256, 240> NTSC2C02::renderBackground(BackgroundMask* opaque) const 
             }
         }
 
-        for (size_t nt_x = static_cast<size_t>(r_coarseX); nt_x < 33 + static_cast<size_t>(r_coarseX); nt_x++) {
+        for (size_t nt_x = static_cast<size_t>(r_renderCoarseX); nt_x < 33 + static_cast<size_t>(r_renderCoarseX); nt_x++) {
             size_t xy_nametable = y_nametable;
 
             if (nt_x >= 32) {
@@ -288,8 +304,8 @@ Image<Color, 256, 240> NTSC2C02::renderBackground(BackgroundMask* opaque) const 
             // Fine scroll shifts the whole background up/left by 0-7 pixels.
             for (size_t y = 0; y < 8; y++) {
                 for (size_t x = 0; x < 8; x++) {
-                    const int screenX = static_cast<int>((nt_x - r_coarseX) * 8 + x) - r_fineX;
-                    const int screenY = static_cast<int>((nt_y - r_coarseY) * 8 + y) - r_fineY;
+                    const int screenX = static_cast<int>((nt_x - r_renderCoarseX) * 8 + x) - r_renderFineX;
+                    const int screenY = static_cast<int>((nt_y - r_renderCoarseY) * 8 + y) - r_renderFineY;
                     if (screenX < 0 || screenX >= 256 || screenY < 0 || screenY >= 240)
                         continue;  // pixel falls outside the visible area
                     const std::uint8_t pixel = sprite[y][x];
