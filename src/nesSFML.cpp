@@ -3,30 +3,37 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include "ines/iNes.hpp"
 #include "nes_core/Nes.hpp"
 
 namespace {
 
-constexpr std::size_t SCALE_FACTOR = 2;
+constexpr unsigned PLAY_SCALE = 3;
+constexpr unsigned DEBUG_SCALE = 2;
+
+// Native sizes of the NES image buffers.
+constexpr unsigned SCREEN_WIDTH = 256;
+constexpr unsigned SCREEN_HEIGHT = 240;
+constexpr unsigned PATTERN_SIZE = 128;
+
+enum class Mode { Play, Debug };
 
 /**
- * @brief Reusable canvas for displaying a NES image in an SFML window.
+ * @brief Reusable texture for one NES image, updated in place every frame.
  *
- * The texture and sprite are created once and updated in place every frame.
  * Allocating a new sf::Texture per frame is what tanked the frame rate.
  */
 template <std::size_t Width, std::size_t Height>
-class WindowCanvas {
+class View {
   public:
-    WindowCanvas() {
+    View() {
         texture.create(Width, Height);
-        sprite.setTexture(texture);
-        sprite.setScale(static_cast<float>(SCALE_FACTOR), static_cast<float>(SCALE_FACTOR));
+        sprite_.setTexture(texture);
     }
 
-    void draw(sf::RenderWindow& window, const NES::Image<NES::Color, Width, Height>& img) {
+    void update(const NES::Image<NES::Color, Width, Height>& img) {
         for (std::size_t y = 0; y < Height; ++y) {
             for (std::size_t x = 0; x < Width; ++x) {
                 const NES::Color& c = img[y][x];
@@ -38,12 +45,18 @@ class WindowCanvas {
             }
         }
         texture.update(pixels.data());
-        window.draw(sprite);
     }
+
+    void place(float x, float y, float scale) {
+        sprite_.setPosition(x, y);
+        sprite_.setScale(scale, scale);
+    }
+
+    [[nodiscard]] const sf::Sprite& sprite() const { return sprite_; }
 
   private:
     sf::Texture texture;
-    sf::Sprite sprite;
+    sf::Sprite sprite_;
     std::array<sf::Uint8, Width * Height * 4> pixels{};
 };
 
@@ -58,35 +71,47 @@ int main(int argc, char** argv) {
     iNES::iNES rom(parser.get<std::string>("rom"));
     NES::NesSystem nes(rom);
 
-    constexpr size_t PATTERNS_SIZE = 128;
+    View<SCREEN_WIDTH, SCREEN_HEIGHT> mainView;
+    View<SCREEN_WIDTH, SCREEN_HEIGHT> nametable1View;
+    View<SCREEN_WIDTH, SCREEN_HEIGHT> nametable2View;
+    View<PATTERN_SIZE, PATTERN_SIZE> pattern1View;
+    View<PATTERN_SIZE, PATTERN_SIZE> pattern2View;
 
-    sf::RenderWindow mainWindow(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "NES Emulator");
+    sf::RenderWindow mainWindow(sf::VideoMode(SCREEN_WIDTH * PLAY_SCALE, SCREEN_HEIGHT * PLAY_SCALE), "NES Emulator");
     mainWindow.setFramerateLimit(60);
-    sf::RenderWindow nametableWindow1(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 1");
-    sf::RenderWindow nametableWindow2(sf::VideoMode(256 * SCALE_FACTOR, 240 * SCALE_FACTOR), "Nametable 2");
-    sf::RenderWindow patternWindow1(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 1");
-    sf::RenderWindow patternWindow2(sf::VideoMode(PATTERNS_SIZE * SCALE_FACTOR, PATTERNS_SIZE * SCALE_FACTOR), "Sprites 2");
-    mainWindow.setPosition(sf::Vector2i(0, 0));
-    nametableWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 0));
-    nametableWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR * 2, 0));
-    patternWindow1.setPosition(sf::Vector2i(256 * SCALE_FACTOR, 240 * SCALE_FACTOR));
-    patternWindow2.setPosition(sf::Vector2i(256 * SCALE_FACTOR + PATTERNS_SIZE * SCALE_FACTOR, 240 * SCALE_FACTOR));
 
     std::uint8_t selectedPalette = 0x00;
+    Mode mode = Mode::Play;
 
-    WindowCanvas<256, 240> mainCanvas;
-    WindowCanvas<256, 240> nametableCanvas1;
-    WindowCanvas<256, 240> nametableCanvas2;
-    WindowCanvas<128, 128> patternCanvas1;
-    WindowCanvas<128, 128> patternCanvas2;
+    // Play mode: just the game, scaled up. Debug mode: the game at 2x on the
+    // left, with NT1/NT2 stacked on the right and the sprite pattern tables
+    // below them (all at native size).
+    auto applyLayout = [&] {
+        if (mode == Mode::Play) {
+            mainWindow.setSize({SCREEN_WIDTH * PLAY_SCALE, SCREEN_HEIGHT * PLAY_SCALE});
+            mainView.place(0.f, 0.f, static_cast<float>(PLAY_SCALE));
+        } else {
+            constexpr float GAME_WIDTH = SCREEN_WIDTH * DEBUG_SCALE;
+            mainWindow.setSize({static_cast<unsigned>(GAME_WIDTH) + SCREEN_WIDTH,
+                                SCREEN_HEIGHT + SCREEN_HEIGHT + PATTERN_SIZE});
+            mainView.place(0.f, 0.f, static_cast<float>(DEBUG_SCALE));
+            nametable1View.place(GAME_WIDTH, 0.f, 1.f);
+            nametable2View.place(GAME_WIDTH, static_cast<float>(SCREEN_HEIGHT), 1.f);
+            pattern1View.place(GAME_WIDTH, static_cast<float>(SCREEN_HEIGHT * 2), 1.f);
+            pattern2View.place(GAME_WIDTH + PATTERN_SIZE, static_cast<float>(SCREEN_HEIGHT * 2), 1.f);
+        }
+    };
 
     // Skip the first frames if specified in the arguments (debug mode)
     for (int i = 0; i < parser.get<int>("skip"); i++) {
         nes.runUntilFrame();
     }
 
+    applyLayout();
+
+    bool tabHeld = false;
     std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
-    while (patternWindow1.isOpen() && patternWindow2.isOpen() && nes.isRunning()) {
+    while (mainWindow.isOpen() && nes.isRunning()) {
         std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
         float fps = 1.0f / static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFrameTime).count()) * 1000.0f;
         mainWindow.setTitle("NES Emulator - FPS: " + std::to_string(fps));
@@ -101,6 +126,17 @@ int main(int argc, char** argv) {
             // read controls
             if (event.type == sf::Event::KeyPressed) {
                 switch (event.key.code) {
+                    case sf::Keyboard::Tab:
+                        // Ignore auto-repeat, otherwise the mode would flicker.
+                        if (!tabHeld) {
+                            tabHeld = true;
+                            mode = mode == Mode::Play ? Mode::Debug : Mode::Play;
+                            applyLayout();
+                        }
+                        break;
+                    case sf::Keyboard::Space:
+                        selectedPalette = static_cast<std::uint8_t>((selectedPalette + 1) % 0x08);
+                        break;
                     case sf::Keyboard::X:
                         nes.setButton(NES::Controller::P1, NES::Button::A, true);
                         break;
@@ -130,6 +166,9 @@ int main(int argc, char** argv) {
                 }
             } else if (event.type == sf::Event::KeyReleased) {
                 switch (event.key.code) {
+                    case sf::Keyboard::Tab:
+                        tabHeld = false;
+                        break;
                     case sf::Keyboard::X:
                         nes.setButton(NES::Controller::P1, NES::Button::A, false);
                         break;
@@ -160,42 +199,24 @@ int main(int argc, char** argv) {
             }
         }
 
-        while (patternWindow1.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
-                patternWindow1.close();
-            }
-
-            // space bar pressed
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
-                selectedPalette = static_cast<std::uint8_t>((selectedPalette + 1) % 0x08);
-                patternWindow1.setTitle("Sprites 1 - Palette: " + std::to_string(selectedPalette));
-            }
-        }
-        while (patternWindow2.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
-                patternWindow2.close();
-            }
-
-            // space bar pressed
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
-                selectedPalette = static_cast<std::uint8_t>((selectedPalette + 1) % 0x08);
-                patternWindow2.setTitle("Sprites 2 - Palette: " + std::to_string(selectedPalette));
-            }
-        }
-
         nes.runUntilFrame();
 
-        auto present = [](sf::RenderWindow& window, auto& canvas, const auto& image) {
-            window.clear();
-            canvas.draw(window, image);
-            window.display();
-        };
+        mainView.update(nes.ppu.renderFrame());
+        mainWindow.clear();
+        mainWindow.draw(mainView.sprite());
 
-        present(patternWindow1, patternCanvas1, nes.ppu.renderPatternTable(0, selectedPalette));
-        present(patternWindow2, patternCanvas2, nes.ppu.renderPatternTable(1, selectedPalette));
-        present(mainWindow, mainCanvas, nes.ppu.renderFrame());
-        present(nametableWindow1, nametableCanvas1, nes.ppu.renderNametable1());
-        present(nametableWindow2, nametableCanvas2, nes.ppu.renderNametable2());
+        if (mode == Mode::Debug) {
+            nametable1View.update(nes.ppu.renderNametable1());
+            nametable2View.update(nes.ppu.renderNametable2());
+            pattern1View.update(nes.ppu.renderPatternTable(0, selectedPalette));
+            pattern2View.update(nes.ppu.renderPatternTable(1, selectedPalette));
+            mainWindow.draw(nametable1View.sprite());
+            mainWindow.draw(nametable2View.sprite());
+            mainWindow.draw(pattern1View.sprite());
+            mainWindow.draw(pattern2View.sprite());
+        }
+
+        mainWindow.display();
     }
 
     return 0;
