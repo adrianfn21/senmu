@@ -83,22 +83,30 @@ int main(int argc, char** argv) {
     std::uint8_t selectedPalette = 0x00;
     Mode mode = Mode::Play;
 
-    // Play mode: just the game, scaled up. Debug mode: the game at 2x on the
-    // left, with NT1/NT2 stacked on the right and the sprite pattern tables
-    // below them (all at native size).
+    // Play mode: just the game, scaled up. Debug mode: the screen at 2x on the
+    // left, nametables at 1x stacked on the right, and the sprite tables at 1x
+    // stacked to the right of the nametables. A small margin separates sections.
     auto applyLayout = [&] {
+        constexpr float MARGIN = 8.f;
         if (mode == Mode::Play) {
             mainWindow.setSize({SCREEN_WIDTH * PLAY_SCALE, SCREEN_HEIGHT * PLAY_SCALE});
             mainView.place(0.f, 0.f, static_cast<float>(PLAY_SCALE));
         } else {
-            constexpr float GAME_WIDTH = SCREEN_WIDTH * DEBUG_SCALE;
-            mainWindow.setSize({static_cast<unsigned>(GAME_WIDTH) + SCREEN_WIDTH,
-                                SCREEN_HEIGHT + SCREEN_HEIGHT + PATTERN_SIZE});
+            constexpr float SCREEN_W = SCREEN_WIDTH * DEBUG_SCALE;
+            constexpr float SCREEN_H = SCREEN_HEIGHT * DEBUG_SCALE;
+            constexpr float NT_W = SCREEN_WIDTH;
+            constexpr float NT_H = SCREEN_HEIGHT;
+            constexpr float PATTERN = PATTERN_SIZE;
+
+            const float ntX = SCREEN_W + MARGIN;
+            const float patternX = ntX + NT_W + MARGIN;
+
+            mainWindow.setSize({static_cast<unsigned>(patternX + PATTERN), static_cast<unsigned>(SCREEN_H)});
             mainView.place(0.f, 0.f, static_cast<float>(DEBUG_SCALE));
-            nametable1View.place(GAME_WIDTH, 0.f, 1.f);
-            nametable2View.place(GAME_WIDTH, static_cast<float>(SCREEN_HEIGHT), 1.f);
-            pattern1View.place(GAME_WIDTH, static_cast<float>(SCREEN_HEIGHT * 2), 1.f);
-            pattern2View.place(GAME_WIDTH + PATTERN_SIZE, static_cast<float>(SCREEN_HEIGHT * 2), 1.f);
+            nametable1View.place(ntX, 0.f, 1.f);
+            nametable2View.place(ntX, NT_H, 1.f);
+            pattern1View.place(patternX, 0.f, 1.f);
+            pattern2View.place(patternX, PATTERN, 1.f);
         }
     };
 
