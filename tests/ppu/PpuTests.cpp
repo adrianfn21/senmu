@@ -145,3 +145,49 @@ TEST_CASE_METHOD(PpuFixture, "Sprite overflow is set with eight sprites on a sca
     }
     REQUIRE(cleared);
 }
+
+TEST_CASE_METHOD(PpuFixture, "Background applies fine X and Y scroll", "[ppu]") {
+    const auto eq = [](NES::Color a, NES::Color b) { return a.r == b.r && a.g == b.g && a.b == b.b; };
+
+    // Palette 0: four distinct colors so any tile pixel is visible.
+    setPpuAddress(0x3F00);
+    for (std::uint8_t color : {0x0F, 0x30, 0x10, 0x20}) nes.cpuBusWrite(0x2007, color);
+
+    // Fill the nametable with tile 6 (a tile from the test ROM's CHR with content
+    // on both axes).
+    setPpuAddress(0x2000);
+    for (int i = 0; i < 32 * 30; i++) nes.cpuBusWrite(0x2007, 0x06);
+
+    nes.cpuBusWrite(0x2000, 0x00);  // background pattern table $0000, nametable 0
+    nes.cpuBusWrite(0x2001, 0x08);  // background rendering only
+
+    const auto scroll = [&](std::uint8_t fineX, std::uint8_t fineY) {
+        nes.cpuBusWrite(0x2005, fineX);
+        nes.cpuBusWrite(0x2005, fineY);
+        return nes.ppu.renderFrame();
+    };
+
+    const auto base = scroll(0, 0);
+
+    const auto fx = scroll(4, 0);  // fine X shifts the background 4 pixels left
+    int mismatchX = 0, diffX = 0;
+    for (int y = 0; y < 240; y++) {
+        for (int x = 0; x + 4 < 256; x++) {
+            if (!eq(fx[y][x], base[y][x + 4])) mismatchX++;
+            if (!eq(fx[y][x], base[y][x])) diffX++;
+        }
+    }
+    REQUIRE(mismatchX == 0);
+    REQUIRE(diffX > 0);  // the shift actually changed the image
+
+    const auto fy = scroll(0, 4);  // fine Y shifts the background 4 pixels up
+    int mismatchY = 0, diffY = 0;
+    for (int y = 0; y + 4 < 240; y++) {
+        for (int x = 0; x < 256; x++) {
+            if (!eq(fy[y][x], base[y + 4][x])) mismatchY++;
+            if (!eq(fy[y][x], base[y][x])) diffY++;
+        }
+    }
+    REQUIRE(mismatchY == 0);
+    REQUIRE(diffY > 0);
+}

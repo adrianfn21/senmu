@@ -244,7 +244,8 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
     // 0010 1000 0000 0000 - 0x2800
     // 0010 1100 0000 0000 - 0x2C00
 
-    for (size_t nt_y = static_cast<size_t>(r_coarseY); nt_y < 30 + static_cast<size_t>(r_coarseY); nt_y++) {
+    // The visible area needs an extra tile row/column to cover the fine-scroll offset.
+    for (size_t nt_y = static_cast<size_t>(r_coarseY); nt_y < 31 + static_cast<size_t>(r_coarseY); nt_y++) {
         size_t y_nametable = original_nametable;
 
         if (nt_y >= 30) {
@@ -255,7 +256,7 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
             }
         }
 
-        for (size_t nt_x = static_cast<size_t>(r_coarseX); nt_x < 32 + static_cast<size_t>(r_coarseX); nt_x++) {
+        for (size_t nt_x = static_cast<size_t>(r_coarseX); nt_x < 33 + static_cast<size_t>(r_coarseX); nt_x++) {
             size_t xy_nametable = y_nametable;
 
             if (nt_x >= 32) {
@@ -281,10 +282,14 @@ Image<Color, 256, 240> NTSC2C02::renderBackground() const noexcept {
             std::uint8_t attribute = vram.read(static_cast<std::uint16_t>(xy_nametable + 32 * 30 + (new_y >> 2) * 8 + (new_x >> 2)));
             size_t palette = (attribute >> (((new_y & 0x02) + ((new_x & 0x02) >> 1)) * 2)) & 0x03;
 
-            // TODO: add precision to fineX and fineY
+            // Fine scroll shifts the whole background up/left by 0-7 pixels.
             for (size_t y = 0; y < 8; y++) {
                 for (size_t x = 0; x < 8; x++) {
-                    bg[(nt_y - r_coarseY) * 8 + y][(nt_x - r_coarseX) * 8 + x] = bgPalette[palette][sprite[y][x]];
+                    const int screenX = static_cast<int>((nt_x - r_coarseX) * 8 + x) - r_fineX;
+                    const int screenY = static_cast<int>((nt_y - r_coarseY) * 8 + y) - r_fineY;
+                    if (screenX < 0 || screenX >= 256 || screenY < 0 || screenY >= 240)
+                        continue;  // pixel falls outside the visible area
+                    bg[static_cast<std::size_t>(screenY)][static_cast<std::size_t>(screenX)] = bgPalette[palette][sprite[y][x]];
                 }
             }
         }
