@@ -68,5 +68,6 @@ set(INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 set(TESTS_DIR "${CMAKE_SOURCE_DIR}/tests")
 
 #===================== BUILD EXECUTABLES ======================#
+enable_testing()
 add_subdirectory(src)
 add_subdirectory(tests)

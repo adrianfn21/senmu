@@ -28,7 +28,7 @@
  * Note: this test must be run from the root directory of the project, otherwise the ROM won't be found.
  */
 
-const std::string NES_TEST_ROM = "tests/cpu/nestest/nestest.nes";
+const std::string NES_TEST_ROM = TEST_ROM_PATH;
 const int MAX_INSTRUCTIONS = 8991;
 const int CYCLES_LAST_INSTRUCTION = 26554;
 
