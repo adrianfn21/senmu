@@ -17,8 +17,29 @@ void NesSystem::reset() noexcept {
 
 void NesSystem::cycle() noexcept {
     ppu.cycle();
-    if ((clockCounter & 0x03) == 0) {
-        cpu.cycle();
+    if (clockCounter % 3 == 0) {
+        if (dma.transfer) {
+            if (dma.dummy) {
+                if (clockCounter % 2 == 1) {
+                    dma.dummy = false;
+                }
+            } else {
+                if (clockCounter % 2 == 0) {
+                    dma.data = cpuBusRead((static_cast<std::uint16_t>(dma.page) << 8) | dma.addr);
+                } else {
+                    ppu.oamAddrWrite(dma.addr);
+                    ppu.oamDataWrite(dma.data);
+                    dma.addr++;
+
+                    if (dma.addr == 0x00) {
+                        dma.transfer = false;
+                        dma.dummy = true;
+                    }
+                }
+            }
+        } else {
+            cpu.cycle();
+        }
     }
 
     if (pendingNmi) [[unlikely]] {
@@ -98,7 +119,7 @@ void NesSystem::cpuBusWrite(std::uint16_t addr, std::uint8_t data) noexcept {
                 break;
         }
     } else if (addr == CPU_DMA_OAM) {
-        // TODO: implement
+        dma.write(data);
     } else if (addr >= CPU_CONTROLLER1 && addr <= CPU_CONTROLLER2) {
         input.write(static_cast<std::uint8_t>(addr & 0x01));
     } else if (addr >= CPU_APU_START && addr <= CPU_APU_END) {
