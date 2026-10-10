@@ -292,7 +292,9 @@ Image<Color, 256, 240> NTSC2C02::renderBackground(BackgroundMask* opaque) const 
                     const int screenY = static_cast<int>((nt_y - r_coarseY) * 8 + y) - r_fineY;
                     if (screenX < 0 || screenX >= 256 || screenY < 0 || screenY >= 240)
                         continue;  // pixel falls outside the visible area
-                    bg[static_cast<std::size_t>(screenY)][static_cast<std::size_t>(screenX)] = bgPalette[palette][sprite[y][x]];
+                    const std::uint8_t pixel = sprite[y][x];
+                    // Pixel 0 is transparent and always shows the universal backdrop.
+                    bg[static_cast<std::size_t>(screenY)][static_cast<std::size_t>(screenX)] = pixel == 0 ? bgPalette[0][0] : bgPalette[palette][pixel];
                     if (opaque != nullptr)
                         (*opaque)[static_cast<std::size_t>(screenY) * 256 + static_cast<std::size_t>(screenX)] = sprite[y][x] != 0;
                 }
@@ -389,7 +391,7 @@ Image<Color, 256, 240> NTSC2C02::renderNametable1() const noexcept {
 
             for (size_t y = 0; y < 8; y++) {
                 for (size_t x = 0; x < 8; x++) {
-                    bg[nt_y * 8 + y][nt_x * 8 + x] = bgPalette[palette][sprite[y][x]];
+                    bg[nt_y * 8 + y][nt_x * 8 + x] = sprite[y][x] == 0 ? bgPalette[0][0] : bgPalette[palette][sprite[y][x]];
                 }
             }
         }
@@ -421,7 +423,7 @@ Image<Color, 256, 240> NTSC2C02::renderNametable2() const noexcept {
 
             for (size_t y = 0; y < 8; y++) {
                 for (size_t x = 0; x < 8; x++) {
-                    bg[nt_y * 8 + y][nt_x * 8 + x] = bgPalette[palette][sprite[y][x]];
+                    bg[nt_y * 8 + y][nt_x * 8 + x] = sprite[y][x] == 0 ? bgPalette[0][0] : bgPalette[palette][sprite[y][x]];
                 }
             }
         }

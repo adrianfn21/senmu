@@ -264,3 +264,25 @@ TEST_CASE_METHOD(PpuFixture, "Only the first 8 sprites render on a scanline", "[
     REQUIRE(!eq(img[2][56], backdrop));
     REQUIRE(eq(img[2][64], backdrop));
 }
+
+TEST_CASE_METHOD(PpuFixture, "Transparent background pixels use the backdrop color", "[ppu]") {
+    const auto eq = [](NES::Color a, NES::Color b) { return a.r == b.r && a.g == b.g && a.b == b.b; };
+
+    // Backdrop ($3F00) is blue; background palette 1 color 0 ($3F04) is black.
+    setPpuAddress(0x3F00);
+    for (std::uint8_t color : {0x01, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F}) nes.cpuBusWrite(0x2007, color);
+
+    // Nametable filled with tile 6 (transparent at local pixel (0,0)); attribute picks palette 1 everywhere.
+    setPpuAddress(0x2000);
+    for (int i = 0; i < 32 * 30; i++) nes.cpuBusWrite(0x2007, 0x06);
+    setPpuAddress(0x23C0);
+    for (int i = 0; i < 64; i++) nes.cpuBusWrite(0x2007, 0x01);
+
+    nes.cpuBusWrite(0x2000, 0x00);  // background pattern table $0000, nametable 0
+    nes.cpuBusWrite(0x2001, 0x08);  // background only
+    const auto img = nes.ppu.renderFrame();
+
+    // The transparent pixel shows the backdrop, not palette 1's black.
+    REQUIRE(eq(img[0][0], nes.ppu.getColor(0x00, 0x00)));
+    REQUIRE(!eq(img[0][0], nes.ppu.getColor(0x01, 0x00)));
+}
