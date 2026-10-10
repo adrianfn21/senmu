@@ -168,6 +168,13 @@ class NTSC2C02 {
     [[nodiscard]] std::array<Color, 4> getPalette(std::uint8_t palette) const noexcept;
 
   private:
+    /**
+     * @brief Counts how many sprites in OAM sit on the given scanline.
+     * @param line The scanline to check.
+     * @return The number of sprites overlapping that scanline.
+     */
+    [[nodiscard]] int spritesOnScanline(int line) const noexcept;
+
     /* Counters */
     int cycles = 0;
     int scanline = 0;

@@ -30,6 +30,10 @@ void NTSC2C02::cycle() {
                 if (r_PPUMASK[RenderBackground] && r_PPUMASK[RenderSprite]) {
                     r_PPUSTATUS[SpriteZero] = true;
                 }
+                // sprite overflow: same shortcut, just count the sprites sitting on this scanline
+                if (r_PPUMASK[RenderSprite] && spritesOnScanline(scanline) >= 8) {
+                    r_PPUSTATUS[SpriteOverflow] = true;
+                }
                 break;
 
             case 241:
@@ -44,8 +48,8 @@ void NTSC2C02::cycle() {
                 frameCompleted = true;
                 frameCounter++;
                 r_PPUSTATUS[VerticalBlanking] = false;
-                r_PPUSTATUS[SpriteZero] = false;  // cleared during pre-render
-                // TODO overflow
+                r_PPUSTATUS[SpriteZero] = false;      // cleared during pre-render
+                r_PPUSTATUS[SpriteOverflow] = false;  // cleared during pre-render
                 break;
         }
     }
@@ -69,6 +73,15 @@ void NTSC2C02::reset() noexcept {
     r_fineY = 0;
     r_nametableIdx = 0;
     r_writeToggle = false;
+}
+
+int NTSC2C02::spritesOnScanline(int line) const noexcept {
+    int count = 0;
+    for (int i = 0; i < 64; i++) {
+        const std::uint8_t y = oam.read(static_cast<std::uint16_t>(i * 4));  // sprite Y position
+        if (y <= line && line < y + 8) count++;                              // 8x8 sprites only (TODO: 8x16)
+    }
+    return count;
 }
 
 void NTSC2C02::controllerWrite(std::uint8_t data) noexcept {
